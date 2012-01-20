@@ -369,16 +369,7 @@ module Stripe
       subscription
     end
 
-    def delete_discount(params={})
-      Stripe.request(:delete, discount_url, @api_key, params)
-      refresh_from({ :discount => nil }, api_key, true)
-    end
-
     private
-
-    def discount_url
-      url + '/discount'
-    end
 
     def subscription_url
       url + '/subscription'
@@ -449,6 +440,10 @@ module Stripe
 
   class Token < APIResource
     include Stripe::APIOperations::Create
+  end
+
+  class Notification < APIResource
+    include Stripe::APIOperations::List
   end
 
   class StripeError < StandardError; end
