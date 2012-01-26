@@ -442,26 +442,18 @@ module Stripe
     include Stripe::APIOperations::Create
   end
 
-  class StripeError < StandardError
-    attr_reader :message
-    attr_reader :http_status
-    attr_reader :http_body
-    attr_reader :json_body
-
-    def initialize(message=nil, http_status=nil, http_body=nil, json_body=nil)
-      @message = message
-      @http_status = http_status
-      @http_body = http_body
-      @json_body = json_body
-    end
+  class Event < APIResource
+    include Stripe::APIOperations::List
   end
+
+  class StripeError < StandardError; end
   class APIError < StripeError; end
   class APIConnectionError < StripeError; end
   class CardError < StripeError
     attr_reader :param, :code
 
-    def initialize(message, param, code, http_status=nil, http_body=nil, json_body=nil)
-      super(message, http_status, http_body, json_body)
+    def initialize(message, param, code)
+      super(message)
       @param = param
       @code = code
     end
@@ -469,8 +461,8 @@ module Stripe
   class InvalidRequestError < StripeError
     attr_accessor :param
 
-    def initialize(message, param, http_status=nil, http_body=nil, json_body=nil)
-      super(message, http_status, http_body, json_body)
+    def initialize(message, param)
+      super(message)
       @param = param
     end
   end
@@ -580,7 +572,7 @@ module Stripe
       # some library out there that makes symbolize_names not work.
       resp = JSON.parse(rbody)
     rescue JSON::ParserError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
     end
 
     resp = Util.symbolize_names(resp)
@@ -597,27 +589,27 @@ module Stripe
     begin
       error_obj = JSON.parse(rbody)
       error_obj = Util.symbolize_names(error_obj)
-      error = error_obj[:error] or raise StripeError.new # escape from parsing
+      error = error_obj[:error] or raise StripeError.new
     rescue JSON::ParserError, StripeError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
     end
 
     case rcode
     when 400, 404 then
-      raise invalid_request_error(error, rcode, rbody, error_obj)
+      raise invalid_request_error(error)
     when 401
-      raise authentication_error(error, rcode, rbody, error_obj)
+      raise authentication_error(error)
     when 402
-      raise card_error(error, rcode, rbody, error_obj)
+      raise card_error(error)
     else
-      raise api_error(error, rcode, rbody, error_obj)
+      raise api_error(error)
     end
   end
 
-  def self.invalid_request_error(error, rcode, rbody, error_obj); InvalidRequestError.new(error[:message], error[:param], rcode, rbody, error_obj); end
-  def self.authentication_error(error, rcode, rbody, error_obj); AuthenticationError.new(error[:message], rcode, rbody, error_obj); end
-  def self.card_error(error, rcode, rbody, error_obj); CardError.new(error[:message], error[:param], error[:code], rcode, rbody, error_obj); end
-  def self.api_error(error, rcode, rbody, error_obj); APIError.new(error[:message], rcode, rbody, error_obj); end
+  def self.invalid_request_error(error); InvalidRequestError.new(error[:message], error[:param]); end
+  def self.authentication_error(error); AuthenticationError.new(error[:message]); end
+  def self.card_error(error); CardError.new(error[:message], error[:param], error[:code]); end
+  def self.api_error(error); APIError.new(error[:message]); end
 
   def self.handle_restclient_error(e)
     case e
