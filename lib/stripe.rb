@@ -53,7 +53,8 @@ module Stripe
         'invoiceitem' => InvoiceItem,
         'invoice' => Invoice,
         'plan' => Plan,
-        'coupon' => Coupon
+        'coupon' => Coupon,
+        'event' => Event
       }
       case resp
       when Array
@@ -149,7 +150,6 @@ module Stripe
 
     attr_accessor :api_key
     @@permanent_attributes = Set.new([:api_key])
-    @@ignored_attributes = Set.new([:id, :api_key, :object])
 
     # The default :id method is deprecated and isn't useful to us
     if method_defined?(:id)
@@ -172,37 +172,11 @@ module Stripe
       obj
     end
 
-    def to_s(*args); inspect(*args); end
-    def inspect(verbose=false, nested=false)
-      str = ["#<#{self.class}"]
-      if (desc = ident.compact).length > 0
-        str << "[#{desc.join(', ')}]"
-      end
+    def to_s(*args); JSON.pretty_generate(@values); end
 
-      if !verbose and nested
-        str << ' ...'
-      else
-        content = @values.keys.sort { |a, b| a.to_s <=> b.to_s }.map do |k|
-          if @@ignored_attributes.include?(k)
-            nil
-          else
-            v = @values[k]
-            v = v.kind_of?(StripeObject) ? v.inspect(verbose, true) : v.inspect
-            v = @unsaved_values.include?(k) ? "#{v} (unsaved)" : v
-            "#{k}=#{v}"
-          end
-        end.compact.join(', ')
-
-        str << ' '
-        if content.length > 0
-          str << content
-        else
-          str << '(no attributes)'
-        end
-      end
-
-      str << ">"
-      str.join
+    def inspect()
+      id_string = (self.respond_to?(:id) && !self.id.nil?) ? " id=#{self.id}" : ""
+      "#<#{self.class}:0x#{self.object_id.to_s(16)}#{id_string}> JSON: " + JSON.pretty_generate(@values)
     end
 
     def refresh_from(values, api_key, partial=false)
@@ -245,10 +219,6 @@ module Stripe
 
     protected
 
-    def ident
-      [@values[:object], @values[:id]]
-    end
-
     def metaclass
       class << self; self; end
     end
@@ -272,7 +242,7 @@ module Stripe
           define_method(k) { @values[k] }
           define_method(k_eq) do |v|
             @values[k] = v
-            @unsaved_values.add(k) unless @@ignored_attributes.include?(k)
+            @unsaved_values.add(k)
           end
         end
       end
@@ -283,7 +253,7 @@ module Stripe
       if name.to_s.end_with?('=')
         attr = name.to_s[0...-1].to_sym
         @values[attr] = args[0]
-        @unsaved_values.add(attr) unless @@ignored_attributes.include?(attr)
+        @unsaved_values.add(attr)
         add_accessors([attr])
         return
       else
@@ -329,10 +299,6 @@ module Stripe
     end
 
     protected
-
-    def ident
-      [@values[:id]]
-    end
   end
 
   class Customer < APIResource
@@ -401,6 +367,7 @@ module Stripe
   class Charge < APIResource
     include Stripe::APIOperations::List
     include Stripe::APIOperations::Create
+    include Stripe::APIOperations::Update
 
     def refund(params={})
       response, api_key = Stripe.request(:post, refund_url, @api_key, params)
@@ -446,14 +413,32 @@ module Stripe
     include Stripe::APIOperations::List
   end
 
-  class StripeError < StandardError; end
+  class StripeError < StandardError
+    attr_reader :message
+    attr_reader :http_status
+    attr_reader :http_body
+    attr_reader :json_body
+
+    def initialize(message=nil, http_status=nil, http_body=nil, json_body=nil)
+      @message = message
+      @http_status = http_status
+      @http_body = http_body
+      @json_body = json_body
+    end
+
+    def to_s
+      status_string = @http_status.nil? ? "" : "(Status #{@http_status}) "
+      "#{status_string}#{@message}"
+    end
+  end
+
   class APIError < StripeError; end
   class APIConnectionError < StripeError; end
   class CardError < StripeError
     attr_reader :param, :code
 
-    def initialize(message, param, code)
-      super(message)
+    def initialize(message, param, code, http_status=nil, http_body=nil, json_body=nil)
+      super(message, http_status, http_body, json_body)
       @param = param
       @code = code
     end
@@ -461,8 +446,8 @@ module Stripe
   class InvalidRequestError < StripeError
     attr_accessor :param
 
-    def initialize(message, param)
-      super(message)
+    def initialize(message, param, http_status=nil, http_body=nil, json_body=nil)
+      super(message, http_status, http_body, json_body)
       @param = param
     end
   end
@@ -572,7 +557,7 @@ module Stripe
       # some library out there that makes symbolize_names not work.
       resp = JSON.parse(rbody)
     rescue JSON::ParserError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
     end
 
     resp = Util.symbolize_names(resp)
@@ -589,27 +574,27 @@ module Stripe
     begin
       error_obj = JSON.parse(rbody)
       error_obj = Util.symbolize_names(error_obj)
-      error = error_obj[:error] or raise StripeError.new
+      error = error_obj[:error] or raise StripeError.new # escape from parsing
     rescue JSON::ParserError, StripeError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
     end
 
     case rcode
     when 400, 404 then
-      raise invalid_request_error(error)
+      raise invalid_request_error(error, rcode, rbody, error_obj)
     when 401
-      raise authentication_error(error)
+      raise authentication_error(error, rcode, rbody, error_obj)
     when 402
-      raise card_error(error)
+      raise card_error(error, rcode, rbody, error_obj)
     else
-      raise api_error(error)
+      raise api_error(error, rcode, rbody, error_obj)
     end
   end
 
-  def self.invalid_request_error(error); InvalidRequestError.new(error[:message], error[:param]); end
-  def self.authentication_error(error); AuthenticationError.new(error[:message]); end
-  def self.card_error(error); CardError.new(error[:message], error[:param], error[:code]); end
-  def self.api_error(error); APIError.new(error[:message]); end
+  def self.invalid_request_error(error, rcode, rbody, error_obj); InvalidRequestError.new(error[:message], error[:param], rcode, rbody, error_obj); end
+  def self.authentication_error(error, rcode, rbody, error_obj); AuthenticationError.new(error[:message], rcode, rbody, error_obj); end
+  def self.card_error(error, rcode, rbody, error_obj); CardError.new(error[:message], error[:param], error[:code], rcode, rbody, error_obj); end
+  def self.api_error(error, rcode, rbody, error_obj); APIError.new(error[:message], rcode, rbody, error_obj); end
 
   def self.handle_restclient_error(e)
     case e
