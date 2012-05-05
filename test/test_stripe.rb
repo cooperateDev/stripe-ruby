@@ -5,8 +5,6 @@ require 'shoulda'
 require 'mocha'
 require 'pp'
 require 'rest-client'
-require 'cgi'
-require 'uri'
 
 class TestStripeRuby < Test::Unit::TestCase
   include Mocha
@@ -75,32 +73,17 @@ class TestStripeRuby < Test::Unit::TestCase
     end
 
     should "not specifying api credentials should raise an exception" do
-      Stripe.api_key = nil
       assert_raises Stripe::AuthenticationError do
         Stripe::Customer.new("test_customer").refresh
       end
     end
 
     should "specifying invalid api credentials should raise an exception" do
-      Stripe.api_key = "invalid"
+      Stripe.api_key="invalid"
       response = test_response(test_invalid_api_key_error, 401)
       assert_raises Stripe::AuthenticationError do
         @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 401))
         Stripe::Customer.retrieve("failing_customer")
-      end
-    end
-
-    should "AuthenticationErrors should have an http status, http body, and JSON body" do
-      Stripe.api_key = "invalid"
-      response = test_response(test_invalid_api_key_error, 401)
-      begin
-        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 401))
-        Stripe::Customer.retrieve("failing_customer")
-      rescue Stripe::AuthenticationError => e
-        assert_equal(401, e.http_status)
-        assert_equal(true, !!e.http_body)
-        assert_equal(true, !!e.json_body[:error][:message])
-        assert_equal(test_invalid_api_key_error['error']['message'], e.json_body[:error][:message])
       end
     end
 
@@ -113,61 +96,8 @@ class TestStripeRuby < Test::Unit::TestCase
         Stripe.api_key=nil
       end
 
-      should "a 400 should give an InvalidRequestError with http status, body, and JSON body" do
-        response = test_response(test_missing_id_error, 400)
-        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 404))
-        begin
-          Stripe::Customer.retrieve("foo")
-        rescue Stripe::InvalidRequestError => e
-          assert_equal(400, e.http_status)
-          assert_equal(true, !!e.http_body)
-          assert_equal(true, e.json_body.kind_of?(Hash))
-        end
-      end
-
-      should "a 401 should give an AuthenticationError with http status, body, and JSON body" do
-        response = test_response(test_missing_id_error, 401)
-        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 404))
-        begin
-          Stripe::Customer.retrieve("foo")
-        rescue Stripe::AuthenticationError => e
-          assert_equal(401, e.http_status)
-          assert_equal(true, !!e.http_body)
-          assert_equal(true, e.json_body.kind_of?(Hash))
-        end
-      end
-
-      should "a 402 should give a CardError with http status, body, and JSON body" do
-        response = test_response(test_missing_id_error, 402)
-        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 404))
-        begin
-          Stripe::Customer.retrieve("foo")
-        rescue Stripe::CardError => e
-          assert_equal(402, e.http_status)
-          assert_equal(true, !!e.http_body)
-          assert_equal(true, e.json_body.kind_of?(Hash))
-        end
-      end
-
-      should "a 404 should give an InvalidRequestError with http status, body, and JSON body" do
-        response = test_response(test_missing_id_error, 404)
-        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 404))
-        begin
-          Stripe::Customer.retrieve("foo")
-        rescue Stripe::InvalidRequestError => e
-          assert_equal(404, e.http_status)
-          assert_equal(true, !!e.http_body)
-          assert_equal(true, e.json_body.kind_of?(Hash))
-        end
-      end
-
       should "setting a nil value for a param should exclude that param from the request" do
-        @mock.expects(:get).with do |url, api_key, params|
-          uri = URI(url)
-          query = CGI.parse(uri.query)
-          (url =~ %r{^https://api.stripe.com/v1/charges?} &&
-           query.keys.sort == ['offset', 'sad'])
-        end.returns(test_response({ :count => 1, :data => [test_charge] }))
+        @mock.expects(:get).with('https://api.stripe.com/v1/charges', { :offset => 5, :sad => false }, nil).returns(test_response({ :count => 1, :data => [test_charge] }))
         c = Stripe::Charge.all(:count => nil, :offset => 5, :sad => false)
 
         @mock.expects(:post).with('https://api.stripe.com/v1/charges', nil, { :amount => 50, :currency => 'usd', :card => {} }).returns(test_response({ :count => 1, :data => [test_charge] }))
@@ -188,7 +118,7 @@ class TestStripeRuby < Test::Unit::TestCase
 
       should "making a GET request with parameters should have a query string and no body" do
         params = { :limit => 1 }
-        @mock.expects(:get).once.with("https://api.stripe.com/v1/charges?limit=1", nil, nil).returns(test_response([test_charge]))
+        @mock.expects(:get).once.with { |url, get, post| get == params and post.nil? }.returns(test_response([test_charge]))
         c = Stripe::Charge.all(params)
       end
 
@@ -287,13 +217,14 @@ class TestStripeRuby < Test::Unit::TestCase
           end
         end
 
-        should "charges should be updateable" do
-          @mock.expects(:get).once.returns(test_response(test_charge))
-          @mock.expects(:post).once.returns(test_response(test_charge))
-          c = Stripe::Charge.new("test_charge")
-          c.refresh
-          c.mnemonic = "New charge description"
-          c.save
+        should "charges should not be updateable" do
+          assert_raises NoMethodError do
+            @mock.expects(:get).once.returns(test_response(test_charge))
+            c = Stripe::Charge.new("test_charge")
+            c.refresh
+            c.mnemonic= "YAY PASSING TEST!"
+            c.save
+          end
         end
 
         should "charges should have Card objects associated with their Card property" do
@@ -376,12 +307,19 @@ class TestStripeRuby < Test::Unit::TestCase
           c = Stripe::Customer.retrieve("test_customer")
 
           # Not an accurate response, but whatever
-          
-          @mock.expects(:delete).once.with("https://api.stripe.com/v1/customers/c_test_customer/subscription?at_period_end=true", nil, nil).returns(test_response(test_subscription('silver')))
+          @mock.expects(:delete).once.with("https://api.stripe.com/v1/customers/c_test_customer/subscription", {:at_period_end => 'true'}, nil).returns(test_response(test_subscription('silver')))
           s = c.cancel_subscription({:at_period_end => 'true'})
 
-          @mock.expects(:delete).once.with("https://api.stripe.com/v1/customers/c_test_customer/subscription?", nil, nil).returns(test_response(test_subscription('silver')))
+          @mock.expects(:delete).once.with("https://api.stripe.com/v1/customers/c_test_customer/subscription", {}, nil).returns(test_response(test_subscription('silver')))
           s = c.cancel_subscription
+        end
+
+        should "be able to delete a customer's discount" do
+          @mock.expects(:get).once.returns(test_response(test_customer))
+          c = Stripe::Customer.retrieve("test_customer")
+
+          @mock.expects(:delete).once.with("https://api.stripe.com/v1/customers/c_test_customer/discount", nil, nil).returns(test_response(test_delete_discount_response))
+          s = c.delete_discount
         end
       end
 
