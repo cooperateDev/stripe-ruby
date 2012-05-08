@@ -14,20 +14,17 @@ spec = Gem::Specification.new do |s|
   s.require_paths = %w{lib}
 
   s.add_dependency('rest-client', '~> 1.4')
+  s.add_dependency('multi_json', '~> 1.1')
 
   s.add_development_dependency('mocha')
   s.add_development_dependency('shoulda')
   s.add_development_dependency('test-unit')
+  s.add_development_dependency('rake')
 
   s.files = %w{
     bin/stripe-console
     lib/stripe.rb
     lib/stripe/version.rb
     lib/data/ca-certificates.crt
-    vendor/stripe-json/lib/json/pure.rb
-    vendor/stripe-json/lib/json/common.rb
-    vendor/stripe-json/lib/json/version.rb
-    vendor/stripe-json/lib/json/pure/generator.rb
-    vendor/stripe-json/lib/json/pure/parser.rb
   }
 end

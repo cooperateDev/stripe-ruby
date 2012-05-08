@@ -8,19 +8,7 @@ require 'openssl'
 
 gem 'rest-client', '~> 1.4'
 require 'rest_client'
-
-begin
-  require 'json'
-rescue LoadError
-  raise if defined?(JSON)
-  require File.join(File.dirname(__FILE__), '../vendor/stripe-json/lib/json/pure')
-
-  # moderately ugly hack to deal with the clobbering that
-  # ActiveSupport's JSON subjects us to
-  class JSON::Pure::Generator::State
-    attr_reader :encoder, :only, :except
-  end
-end
+require 'multi_json'
 
 require File.join(File.dirname(__FILE__), 'stripe/version')
 
@@ -53,7 +41,9 @@ module Stripe
         'invoiceitem' => InvoiceItem,
         'invoice' => Invoice,
         'plan' => Plan,
-        'coupon' => Coupon
+        'coupon' => Coupon,
+        'event' => Event,
+        'transfer' => Transfer
       }
       case resp
       when Array
@@ -93,6 +83,57 @@ module Stripe
         object.map { |value| symbolize_names(value) }
       else
         object
+      end
+    end
+
+    def self.encode_key(key)
+      URI.escape(key.to_s, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+    end
+
+    def self.flatten_params(params, parent_key = nil)
+      result = []
+      params.each do |key, value|
+        calculated_key = parent_key ? "#{parent_key}[#{encode_key(key)}]" : encode_key(key)
+        if value.is_a? Hash
+          result += flatten_params(value, calculated_key)
+        elsif value.is_a? Array
+          result += flatten_params_array(value, calculated_key)
+        else
+          result << [calculated_key, value]
+        end
+      end
+      result
+    end
+
+    def self.flatten_params_array value, calculated_key
+      result = []
+      value.each do |elem|
+        if elem.is_a? Hash
+          result += flatten_params(elem, calculated_key)
+        elsif elem.is_a? Array
+          result += flatten_params_array(elem, calculated_key)
+        else
+          result << ["#{calculated_key}[]", elem]
+        end
+      end
+      result
+    end
+  end
+
+  module JSON
+    if MultiJson.respond_to?(:dump)
+      def self.dump(*args)
+        MultiJson.dump(*args)
+      end
+      def self.load(*args)
+        MultiJson.load(*args)
+      end
+    else
+      def self.dump(*args)
+        MultiJson.encode(*args)
+      end
+      def self.load(*args)
+        MultiJson.decode(*args)
       end
     end
   end
@@ -149,7 +190,6 @@ module Stripe
 
     attr_accessor :api_key
     @@permanent_attributes = Set.new([:api_key])
-    @@ignored_attributes = Set.new([:id, :api_key, :object])
 
     # The default :id method is deprecated and isn't useful to us
     if method_defined?(:id)
@@ -172,37 +212,11 @@ module Stripe
       obj
     end
 
-    def to_s(*args); inspect(*args); end
-    def inspect(verbose=false, nested=false)
-      str = ["#<#{self.class}"]
-      if (desc = ident.compact).length > 0
-        str << "[#{desc.join(', ')}]"
-      end
+    def to_s(*args); Stripe::JSON.dump(@values, :pretty => true); end
 
-      if !verbose and nested
-        str << ' ...'
-      else
-        content = @values.keys.sort { |a, b| a.to_s <=> b.to_s }.map do |k|
-          if @@ignored_attributes.include?(k)
-            nil
-          else
-            v = @values[k]
-            v = v.kind_of?(StripeObject) ? v.inspect(verbose, true) : v.inspect
-            v = @unsaved_values.include?(k) ? "#{v} (unsaved)" : v
-            "#{k}=#{v}"
-          end
-        end.compact.join(', ')
-
-        str << ' '
-        if content.length > 0
-          str << content
-        else
-          str << '(no attributes)'
-        end
-      end
-
-      str << ">"
-      str.join
+    def inspect()
+      id_string = (self.respond_to?(:id) && !self.id.nil?) ? " id=#{self.id}" : ""
+      "#<#{self.class}:0x#{self.object_id.to_s(16)}#{id_string}> JSON: " + Stripe::JSON.dump(@values, :pretty => true)
     end
 
     def refresh_from(values, api_key, partial=false)
@@ -239,15 +253,12 @@ module Stripe
     end
     def keys; @values.keys; end
     def values; @values.values; end
-    def to_json(*a); @values.to_json(*a); end
+    def to_json(*a); Stripe::JSON.dump(@values); end
+    def as_json(*a); @values.as_json(*a); end
     def to_hash; @values; end
     def each(&blk); @values.each(&blk); end
 
     protected
-
-    def ident
-      [@values[:object], @values[:id]]
-    end
 
     def metaclass
       class << self; self; end
@@ -272,7 +283,7 @@ module Stripe
           define_method(k) { @values[k] }
           define_method(k_eq) do |v|
             @values[k] = v
-            @unsaved_values.add(k) unless @@ignored_attributes.include?(k)
+            @unsaved_values.add(k)
           end
         end
       end
@@ -283,7 +294,7 @@ module Stripe
       if name.to_s.end_with?('=')
         attr = name.to_s[0...-1].to_sym
         @values[attr] = args[0]
-        @unsaved_values.add(attr) unless @@ignored_attributes.include?(attr)
+        @unsaved_values.add(attr)
         add_accessors([attr])
         return
       else
@@ -329,10 +340,6 @@ module Stripe
     end
 
     protected
-
-    def ident
-      [@values[:id]]
-    end
   end
 
   class Customer < APIResource
@@ -410,6 +417,7 @@ module Stripe
   class Charge < APIResource
     include Stripe::APIOperations::List
     include Stripe::APIOperations::Create
+    include Stripe::APIOperations::Update
 
     def refund(params={})
       response, api_key = Stripe.request(:post, refund_url, @api_key, params)
@@ -451,14 +459,51 @@ module Stripe
     include Stripe::APIOperations::Create
   end
 
-  class StripeError < StandardError; end
+  class Event < APIResource
+    include Stripe::APIOperations::List
+  end
+
+  class Transfer < APIResource
+    include Stripe::APIOperations::List
+
+    def transactions(params={})
+      response, api_key = Stripe.request(:get, transactions_url, @api_key, params)
+      Util.convert_to_stripe_object(response, api_key)
+    end
+
+    private
+
+    def transactions_url
+      url + '/transactions'
+    end
+  end
+
+  class StripeError < StandardError
+    attr_reader :message
+    attr_reader :http_status
+    attr_reader :http_body
+    attr_reader :json_body
+
+    def initialize(message=nil, http_status=nil, http_body=nil, json_body=nil)
+      @message = message
+      @http_status = http_status
+      @http_body = http_body
+      @json_body = json_body
+    end
+
+    def to_s
+      status_string = @http_status.nil? ? "" : "(Status #{@http_status}) "
+      "#{status_string}#{@message}"
+    end
+  end
+
   class APIError < StripeError; end
   class APIConnectionError < StripeError; end
   class CardError < StripeError
     attr_reader :param, :code
 
-    def initialize(message, param, code)
-      super(message)
+    def initialize(message, param, code, http_status=nil, http_body=nil, json_body=nil)
+      super(message, http_status, http_body, json_body)
       @param = param
       @code = code
     end
@@ -466,8 +511,8 @@ module Stripe
   class InvalidRequestError < StripeError
     attr_accessor :param
 
-    def initialize(message, param)
-      super(message)
+    def initialize(message, param, http_status=nil, http_body=nil, json_body=nil)
+      super(message, http_status, http_body, json_body)
       @param = param
     end
   end
@@ -515,19 +560,21 @@ module Stripe
     }
 
     params = Util.objects_to_ids(params)
+    url = self.api_url(url)
     case method.to_s.downcase.to_sym
     when :get, :head, :delete
       # Make params into GET parameters
-      headers = { :params => params }.merge(headers)
+      if params && params.count
+        query_string = Util.flatten_params(params).collect{|p| "#{p[0]}=#{p[1]}"}.join('&')
+        url += "?#{query_string}"
+      end
       payload = nil
     else
       payload = params
     end
 
-    # There's a bug in some version of activesupport where JSON.dump
-    # stops working
     begin
-      headers = { :x_stripe_client_user_agent => JSON.dump(ua) }.merge(headers)
+      headers = { :x_stripe_client_user_agent => Stripe::JSON.dump(ua) }.merge(headers)
     rescue => e
       headers = {
         :x_stripe_client_raw_user_agent => ua.inspect,
@@ -536,12 +583,12 @@ module Stripe
     end
 
     headers = {
-      :user_agent => "Stripe/v1 RubyBindings/#{Stripe::VERSION}"
+      :user_agent => "Stripe/v1 RubyBindings/#{Stripe::VERSION}",
+      :authorization => "Bearer #{api_key}"
     }.merge(headers)
     opts = {
       :method => method,
-      :url => self.api_url(url),
-      :user => api_key,
+      :url => url,
       :headers => headers,
       :open_timeout => 30,
       :payload => payload,
@@ -575,9 +622,9 @@ module Stripe
     begin
       # Would use :symbolize_names => true, but apparently there is
       # some library out there that makes symbolize_names not work.
-      resp = JSON.parse(rbody)
-    rescue JSON::ParserError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
+      resp = Stripe::JSON.load(rbody)
+    rescue MultiJson::DecodeError
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
     end
 
     resp = Util.symbolize_names(resp)
@@ -592,29 +639,29 @@ module Stripe
 
   def self.handle_api_error(rcode, rbody)
     begin
-      error_obj = JSON.parse(rbody)
+      error_obj = Stripe::JSON.load(rbody)
       error_obj = Util.symbolize_names(error_obj)
-      error = error_obj[:error] or raise StripeError.new
-    rescue JSON::ParserError, StripeError
-      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})")
+      error = error_obj[:error] or raise StripeError.new # escape from parsing
+    rescue MultiJson::DecodeError, StripeError
+      raise APIError.new("Invalid response object from API: #{rbody.inspect} (HTTP response code was #{rcode})", rcode, rbody)
     end
 
     case rcode
     when 400, 404 then
-      raise invalid_request_error(error)
+      raise invalid_request_error(error, rcode, rbody, error_obj)
     when 401
-      raise authentication_error(error)
+      raise authentication_error(error, rcode, rbody, error_obj)
     when 402
-      raise card_error(error)
+      raise card_error(error, rcode, rbody, error_obj)
     else
-      raise api_error(error)
+      raise api_error(error, rcode, rbody, error_obj)
     end
   end
 
-  def self.invalid_request_error(error); InvalidRequestError.new(error[:message], error[:param]); end
-  def self.authentication_error(error); AuthenticationError.new(error[:message]); end
-  def self.card_error(error); CardError.new(error[:message], error[:param], error[:code]); end
-  def self.api_error(error); APIError.new(error[:message]); end
+  def self.invalid_request_error(error, rcode, rbody, error_obj); InvalidRequestError.new(error[:message], error[:param], rcode, rbody, error_obj); end
+  def self.authentication_error(error, rcode, rbody, error_obj); AuthenticationError.new(error[:message], rcode, rbody, error_obj); end
+  def self.card_error(error, rcode, rbody, error_obj); CardError.new(error[:message], error[:param], error[:code], rcode, rbody, error_obj); end
+  def self.api_error(error, rcode, rbody, error_obj); APIError.new(error[:message], rcode, rbody, error_obj); end
 
   def self.handle_restclient_error(e)
     case e
