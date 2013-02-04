@@ -2,7 +2,10 @@
 # API spec at https://stripe.com/docs/api
 require 'cgi'
 require 'set'
+require 'rubygems'
 require 'openssl'
+
+gem 'rest-client', '~> 1.4'
 require 'rest_client'
 require 'multi_json'
 
