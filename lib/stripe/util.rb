@@ -25,7 +25,6 @@ module Stripe
         'coupon' => Coupon,
         'event' => Event,
         'transfer' => Transfer,
-        'recipient' => Recipient,
         'list' => ListObject
       }
       case resp
