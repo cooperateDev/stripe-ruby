@@ -2,10 +2,7 @@
 # API spec at https://stripe.com/docs/api
 require 'cgi'
 require 'set'
-require 'rubygems'
 require 'openssl'
-
-gem 'rest-client', '~> 1.4'
 require 'rest_client'
 require 'multi_json'
 
@@ -127,7 +124,7 @@ module Stripe
       # Make params into GET parameters
       if params && params.count > 0
         query_string = Util.flatten_params(params).collect{|key, value| "#{key}=#{Util.url_encode(value)}"}.join('&')
-        url += "?#{query_string}"
+        url += "#{URI.parse(url).query ? '&' : '?'}#{query_string}"
       end
       payload = nil
     else
