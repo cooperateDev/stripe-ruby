@@ -70,7 +70,8 @@ module Stripe
     end
 
     def [](k)
-      @values[k.to_sym]
+      k = k.to_sym if k.kind_of?(String)
+      @values[k]
     end
 
     def []=(k, v)
