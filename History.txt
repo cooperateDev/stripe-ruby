@@ -1,3 +1,17 @@
+=== 1.8.1 2013-04-19
+
+* 1 minor enhancement:
+  * Add support for specifying an API key when retrieving an upcoming invoice
+
+=== 1.8.0 2013-04-11
+
+* 1 major enhancement:
+  * Add new Recipient API resource
+  * Allow Transfers to be createable
+
+=== 1.7.11 2013-02-21
+* Add 'id' to the list of permanent attributes
+
 === 1.7.10 2013-02-01
 * Add support for passing options when retrieving Stripe objects
   e.g., Stripe::Charge.retrieve({id:"foo", expand:["customer"]})

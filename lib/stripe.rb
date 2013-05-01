@@ -2,10 +2,7 @@
 # API spec at https://stripe.com/docs/api
 require 'cgi'
 require 'set'
-require 'rubygems'
 require 'openssl'
-
-gem 'rest-client', '~> 1.4'
 require 'rest_client'
 require 'multi_json'
 
@@ -35,6 +32,7 @@ require 'stripe/coupon'
 require 'stripe/token'
 require 'stripe/event'
 require 'stripe/transfer'
+require 'stripe/recipient'
 
 # Errors
 require 'stripe/errors/stripe_error'
@@ -60,11 +58,18 @@ module Stripe
 
   def self.request(method, url, api_key, params={}, headers={})
     unless api_key ||= @api_key
-      raise AuthenticationError.new('No API key provided.' +
+      raise AuthenticationError.new('No API key provided. ' +
         'Set your API key using "Stripe.api_key = <API-KEY>". ' +
         'You can generate API keys from the Stripe web interface. ' +
         'See https://stripe.com/api for details, or email support@stripe.com ' +
         'if you have any questions.')
+    end
+
+    if api_key =~ /\s/
+      raise AuthenticationError.new('Your API key is invalid, as it contains ' +
+        'whitespace. (HINT: You can double-check your API key from the ' +
+        'Stripe web interface. See https://stripe.com/api for details, or ' +
+        'email support@stripe.com if you have any questions.)')
     end
 
     request_opts = { :verify_ssl => false }
@@ -79,7 +84,8 @@ module Stripe
 
     case method.to_s.downcase.to_sym
     when :get, :head, :delete
-      url += "?#{uri_encode(params)}" if params && params.any?
+      # Make params into GET parameters
+      url += "#{URI.parse(url).query ? '&' : '?'}#{uri_encode(params)}" if params && params.any?
       payload = nil
     else
       payload = uri_encode(params)
@@ -134,7 +140,7 @@ module Stripe
   end
 
   def self.user_agent
-    @uname ||= `uname -a 2>/dev/null`.strip if RUBY_PLATFORM =~ /linux|darwin/i
+    @uname ||= get_uname
     lang_version = "#{RUBY_VERSION} p#{RUBY_PATCHLEVEL} (#{RUBY_RELEASE_DATE})"
 
     {
@@ -146,6 +152,12 @@ module Stripe
       :uname => @uname
     }
 
+  end
+
+  def self.get_uname
+    `uname -a 2>/dev/null`.strip if RUBY_PLATFORM =~ /linux|darwin/i
+  rescue Errno::ENOMEM => ex # couldn't create subprocess
+    "uname lookup failed"
   end
 
   def self.uri_encode(params)

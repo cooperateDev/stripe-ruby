@@ -3,7 +3,7 @@ module Stripe
     include Enumerable
 
     attr_accessor :api_key
-    @@permanent_attributes = Set.new([:api_key])
+    @@permanent_attributes = Set.new([:api_key, :id])
 
     # The default :id method is deprecated and isn't useful to us
     if method_defined?(:id)
@@ -70,8 +70,7 @@ module Stripe
     end
 
     def [](k)
-      k = k.to_sym if k.kind_of?(String)
-      @values[k]
+      @values[k.to_sym]
     end
 
     def []=(k, v)

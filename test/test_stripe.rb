@@ -81,6 +81,13 @@ class TestStripeRuby < Test::Unit::TestCase
       end
     end
 
+    should "specifying api credentials containing whitespace should raise an exception" do
+      Stripe.api_key = "key "
+      assert_raises Stripe::AuthenticationError do
+        Stripe::Customer.new("test_customer").refresh
+      end
+    end
+
     should "specifying invalid api credentials should raise an exception" do
       Stripe.api_key = "invalid"
       response = test_response(test_invalid_api_key_error, 401)
@@ -118,6 +125,15 @@ class TestStripeRuby < Test::Unit::TestCase
         @mock.expects(:get).with("#{Stripe.api_base}/v1/charges?customer=test%20customer", nil, nil).returns(response)
         charges = Stripe::Charge.all(:customer => 'test customer').data
         assert charges.kind_of? Array
+      end
+
+      should "construct URL properly with base query parameters" do
+        response = test_response(test_invoice_customer_array)
+        @mock.expects(:get).with("#{Stripe.api_base}/v1/invoices?customer=test_customer", nil, nil).returns(response)
+        invoices = Stripe::Invoice.all(:customer => 'test_customer')
+
+        @mock.expects(:get).with("#{Stripe.api_base}/v1/invoices?customer=test_customer&paid=true", nil, nil).returns(response)
+        invoices.all(:paid => true)
       end
 
       should "a 400 should give an InvalidRequestError with http status, body, and JSON body" do
@@ -422,7 +438,7 @@ class TestStripeRuby < Test::Unit::TestCase
           c = Stripe::Customer.retrieve("test_customer")
 
           # Not an accurate response, but whatever
-          
+
           @mock.expects(:delete).once.with("#{Stripe.api_base}/v1/customers/c_test_customer/subscription?at_period_end=true", nil, nil).returns(test_response(test_subscription('silver')))
           s = c.cancel_subscription({:at_period_end => 'true'})
 
@@ -438,6 +454,15 @@ class TestStripeRuby < Test::Unit::TestCase
           s = c.delete_discount
           assert_equal nil, c.discount
         end
+
+        should "be able to update a customer without refreshing it first" do
+          @mock.expects(:post).once.with("#{Stripe.api_base}/v1/customers/test_customer", nil, 'mnemonic=bar').returns(test_response(test_customer({:mnemonic => "bar"})))
+          c = Stripe::Customer.new("test_customer")
+          c.mnemonic = "bar"
+          c.save
+          assert_equal c.mnemonic, "bar"
+        end
+
       end
 
       context "card tests" do
@@ -465,6 +490,89 @@ class TestStripeRuby < Test::Unit::TestCase
           @mock.expects(:post).once.with('https://api.stripe.com/v1/invoices/in_test_invoice/pay', nil, '').returns(test_response(test_paid_invoice))
           i.pay
           assert_equal i.next_payment_attempt, nil
+        end
+      end
+
+      context "transfer tests" do
+
+        should "transfers should be listable" do
+          @mock.expects(:get).once.returns(test_response(test_transfer_array))
+          t = Stripe::Transfer.all
+          assert t.data.kind_of? Array
+          t.each do |transfer|
+            assert transfer.kind_of?(Stripe::Transfer)
+          end
+        end
+
+        should "transfers should not be deletable" do
+          assert_raises NoMethodError do
+            @mock.expects(:get).once.returns(test_response(test_transfer))
+            t = Stripe::Transfer.retrieve("test_transfer")
+            t.delete
+          end
+        end
+
+        should "transfers should have BankAccount objects associated with their account property" do
+          @mock.expects(:get).once.returns(test_response(test_transfer))
+          t = Stripe::Transfer.retrieve("test_transfer")
+          assert t.account.kind_of?(Stripe::StripeObject) && t.account.object == 'bank_account'
+        end
+
+        should "create a transfer should return a new transfer when passed correct parameters" do
+          @mock.expects(:post).with do |url, api_key, params|
+            url == "#{Stripe.api_base}/v1/transfers" && api_key.nil? && CGI.parse(params) == {
+              'currency' => ['usd'], 'amount' => ['100'],
+              'recipient' => ['test_recipient']
+            }
+          end.once.returns(test_response(test_transfer))
+
+          t = Stripe::Transfer.create({
+            :amount => 100,
+            :currency => "usd",
+            :recipient => "test_recipient"
+          })
+
+          assert_equal 'pending', t.status
+        end
+
+      end
+
+      context "recipient tests" do
+
+        should "recipients should be listable" do
+          @mock.expects(:get).once.returns(test_response(test_recipient_array))
+          r = Stripe::Recipient.all.data
+          assert r.kind_of? Array
+          assert r[0].kind_of? Stripe::Recipient
+        end
+
+        should "recipients should be deletable" do
+          @mock.expects(:delete).once.returns(test_response(test_recipient({:deleted => true})))
+          r = Stripe::Recipient.new("test_recipient")
+          r.delete
+          assert r.deleted
+        end
+
+        should "recipients should be updateable" do
+          @mock.expects(:get).once.returns(test_response(test_recipient({:description => "foo"})))
+          @mock.expects(:post).once.returns(test_response(test_recipient({:description => "bar"})))
+          r = Stripe::Recipient.new("test_recipient").refresh
+          assert_equal r.description, "foo"
+          r.description = "bar"
+          r.save
+          assert_equal r.description, "bar"
+        end
+
+        should "recipients should have BankAccount objects associated with their active_account property" do
+          @mock.expects(:get).once.returns(test_response(test_recipient))
+          r = Stripe::Recipient.retrieve("test_recipient")
+          assert r.active_account.kind_of?(Stripe::StripeObject) && r.active_account.object == 'bank_account'
+        end
+
+        should "create should return a new recipient" do
+          @mock.expects(:post).once.returns(test_response(test_recipient))
+          r = Stripe::Recipient.create(:name => 'Stripe User', :type => 'individual')
+          assert_equal "rp_test_recipient", r.id
         end
       end
 
