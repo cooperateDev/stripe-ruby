@@ -36,12 +36,12 @@ module Stripe
     end
 
     def to_s(*args)
-      Stripe::JSON.dump(@values, :pretty => true)
+      JSON.pretty_generate(@values)
     end
 
     def inspect()
       id_string = (self.respond_to?(:id) && !self.id.nil?) ? " id=#{self.id}" : ""
-      "#<#{self.class}:0x#{self.object_id.to_s(16)}#{id_string}> JSON: " + Stripe::JSON.dump(@values, :pretty => true)
+      "#<#{self.class}:0x#{self.object_id.to_s(16)}#{id_string}> JSON: " + JSON.pretty_generate(@values)
     end
 
     def refresh_from(values, api_key, partial=false)
@@ -87,7 +87,7 @@ module Stripe
     end
 
     def to_json(*a)
-      Stripe::JSON.dump(@values)
+      JSON.generate(@values)
     end
 
     def as_json(*a)
@@ -100,15 +100,6 @@ module Stripe
 
     def each(&blk)
       @values.each(&blk)
-    end
-
-    def _dump(level)
-      Marshal.dump([@values, @api_key])
-    end
-
-    def self._load(args)
-      values, api_key = Marshal.load(args)
-      construct_from(values, api_key)
     end
 
     if RUBY_VERSION < '1.9.2'
