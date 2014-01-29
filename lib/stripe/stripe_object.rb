@@ -102,21 +102,6 @@ module Stripe
       @values.each(&blk)
     end
 
-    def _dump(level)
-      [Marshal.dump(@values), @api_key].join("--::--")
-    end
-
-    def self._load(args)
-      hash = args.split("--::--")
-      construct_from(Marshal.load(hash[0]), hash[1])
-    end
-
-    if RUBY_VERSION < '1.9.2'
-      def respond_to?(symbol)
-        @values.has_key?(symbol) || super
-      end
-    end
-
     protected
 
     def metaclass
@@ -178,10 +163,6 @@ module Stripe
           raise
         end
       end
-    end
-
-    def respond_to_missing?(symbol, include_private = false)
-      @values.has_key?(symbol) || super
     end
   end
 end
