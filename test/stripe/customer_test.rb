@@ -32,13 +32,19 @@ module Stripe
       assert_equal "c_test_customer", c.id
     end
 
+    should "create_upcoming_invoice should create a new invoice" do
+      @mock.expects(:post).once.returns(test_response(test_invoice))
+      i = Stripe::Customer.new("test_customer").create_upcoming_invoice
+      assert_equal "c_test_customer", i.customer
+    end
+
     should "be able to update a customer's subscription" do
       @mock.expects(:get).once.returns(test_response(test_customer))
       c = Stripe::Customer.retrieve("test_customer")
 
       @mock.expects(:post).once.with do |url, api_key, params|
         url == "#{Stripe.api_base}/v1/customers/c_test_customer/subscription" && api_key.nil? && CGI.parse(params) == {'plan' => ['silver']}
-      end.returns(test_response(test_subscription('silver')))
+      end.returns(test_response(test_subscription(:plan => 'silver')))
       s = c.update_subscription({:plan => 'silver'})
 
       assert_equal 'subscription', s.object
@@ -51,10 +57,10 @@ module Stripe
 
       # Not an accurate response, but whatever
 
-      @mock.expects(:delete).once.with("#{Stripe.api_base}/v1/customers/c_test_customer/subscription?at_period_end=true", nil, nil).returns(test_response(test_subscription('silver')))
+      @mock.expects(:delete).once.with("#{Stripe.api_base}/v1/customers/c_test_customer/subscription?at_period_end=true", nil, nil).returns(test_response(test_subscription(:plan => 'silver')))
       c.cancel_subscription({:at_period_end => 'true'})
 
-      @mock.expects(:delete).once.with("#{Stripe.api_base}/v1/customers/c_test_customer/subscription", nil, nil).returns(test_response(test_subscription('silver')))
+      @mock.expects(:delete).once.with("#{Stripe.api_base}/v1/customers/c_test_customer/subscription", nil, nil).returns(test_response(test_subscription(:plan => 'silver')))
       c.cancel_subscription
     end
 
