@@ -95,10 +95,7 @@ module Stripe
     end
 
     def to_hash
-      @values.inject({}) do |acc, (key, value)|
-        acc[key] = value.respond_to?(:to_hash) ? value.to_hash : value
-        acc
-      end
+      @values
     end
 
     def each(&blk)
