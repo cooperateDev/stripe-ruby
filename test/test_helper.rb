@@ -201,8 +201,7 @@ def test_coupon(params={})
     :duration_in_months => 3,
     :percent_off => 25,
     :id => "co_test_coupon",
-    :object => "coupon",
-    :metadata => {},
+    :object => "coupon"
   }.merge(params)
 end
 
