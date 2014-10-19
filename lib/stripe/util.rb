@@ -17,23 +17,26 @@ module Stripe
 
     def self.object_classes
       @object_classes ||= {
+        # data structures
+        'list' => ListObject,
+        
+        # business objects
+        'application_fee' => ApplicationFee,
         'balance' => Balance,
         'balance_transaction' => BalanceTransaction,
+        'card' => Card,
         'charge' => Charge,
+        'coupon' => Coupon,
         'customer' => Customer,
+        'event' => Event,
+        'fee_refund' => ApplicationFeeRefund,
         'invoiceitem' => InvoiceItem,
         'invoice' => Invoice,
         'plan' => Plan,
-        'coupon' => Coupon,
-        'event' => Event,
-        'transfer' => Transfer,
         'recipient' => Recipient,
-        'card' => Card,
-        'subscription' => Subscription,
-        'list' => ListObject,
         'refund' => Refund,
-        'application_fee' => ApplicationFee,
-        'fee_refund' => ApplicationFeeRefund
+        'subscription' => Subscription,        
+        'transfer' => Transfer
       }
     end
 
@@ -65,12 +68,12 @@ module Stripe
     def self.symbolize_names(object)
       case object
       when Hash
-        new = {}
+        new_hash = {}
         object.each do |key, value|
           key = (key.to_sym rescue key) || key
-          new[key] = symbolize_names(value)
+          new_hash[key] = symbolize_names(value)
         end
-        new
+        new_hash
       when Array
         object.map { |value| symbolize_names(value) }
       else
