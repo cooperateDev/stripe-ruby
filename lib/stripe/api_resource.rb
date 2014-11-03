@@ -4,7 +4,7 @@ module Stripe
       self.name.split('::')[-1]
     end
 
-    def self.url()
+    def self.url
       if self == APIResource
         raise NotImplementedError.new('APIResource is an abstract class.  You should perform actions on its subclasses (Charge, Customer, etc.)')
       end
@@ -21,7 +21,6 @@ module Stripe
     def refresh
       response, api_key = Stripe.request(:get, url, @api_key, @retrieve_options)
       refresh_from(response, api_key)
-      self
     end
 
     def self.retrieve(id, api_key=nil)
