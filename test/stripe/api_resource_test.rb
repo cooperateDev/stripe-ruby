@@ -67,25 +67,6 @@ module Stripe
       end
     end
 
-    should "send stripe account as header when set" do
-      stripe_account = "acct_0000"
-      Stripe.expects(:execute_request).with do |opts|
-        opts[:headers][:stripe_account] == stripe_account
-      end.returns(test_response(test_charge))
-
-      Stripe::Charge.create({:card => {:number => '4242424242424242'}},
-                            {:stripe_account => stripe_account, :api_key => 'sk_test_local'})
-    end
-
-    should "not send stripe account as header when not set" do
-      Stripe.expects(:execute_request).with do |opts|
-        opts[:headers][:stripe_account].nil?
-      end.returns(test_response(test_charge))
-
-      Stripe::Charge.create({:card => {:number => '4242424242424242'}},
-        'sk_test_local')
-    end
-
     context "when specifying per-object credentials" do
       context "with no global API key set" do
         should "use the per-object credential when creating" do
@@ -133,15 +114,13 @@ module Stripe
     end
 
     context "with valid credentials" do
-      should "send along the idempotency-key header" do
+      should "send along additional headers" do
         Stripe.expects(:execute_request).with do |opts|
-          opts[:headers][:idempotency_key] == 'bar'
+          opts[:headers][:foo] == 'bar'
         end.returns(test_response(test_charge))
 
-        Stripe::Charge.create({:card => {:number => '4242424242424242'}}, {
-          :idempotency_key => 'bar',
-          :api_key => 'local',
-        })
+        Stripe::Charge.create({:card => {:number => '4242424242424242'}},
+          'local', {:foo => 'bar'})
       end
 
       should "urlencode values in GET params" do
