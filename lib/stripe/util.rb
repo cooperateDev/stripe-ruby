@@ -113,5 +113,27 @@ module Stripe
       end
       result
     end
+
+    # The secondary opts argument can either be a string or hash
+    # Turn this value into an api_key and a set of headers
+    def self.parse_opts(opts)
+      case opts
+      when NilClass
+        return nil, {}
+      when String
+        return opts, {}
+      when Hash
+        headers = {}
+        if opts[:idempotency_key]
+          headers[:idempotency_key] = opts[:idempotency_key] 
+        end
+        if opts[:stripe_account]
+          headers[:stripe_account] = opts[:stripe_account]
+        end
+        return opts[:api_key], headers
+      else
+        raise TypeError.new("parse_opts expects a string or a hash")
+      end
+    end
   end
 end
