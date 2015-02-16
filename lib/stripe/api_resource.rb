@@ -21,7 +21,7 @@ module Stripe
     end
 
     def refresh
-      response, opts = request(:get, url, @retrieve_params)
+      response, opts = request(:get, url)
       refresh_from(response, opts)
     end
 
