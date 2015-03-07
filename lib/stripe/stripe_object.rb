@@ -118,12 +118,9 @@ module Stripe
       end
     end
 
+
     def serialize_nested_object(key)
       new_value = @values[key]
-      if new_value.is_a?(APIResource)
-        return {}
-      end
-
       if @unsaved_values.include?(key)
         # the object has been reassigned
         # e.g. as object.key = {foo => bar}
@@ -140,7 +137,7 @@ module Stripe
       end
     end
 
-    def self.serialize_params(obj, original_value=nil)
+    def self.serialize_params(obj)
       case obj
       when nil
         ''
@@ -166,7 +163,7 @@ module Stripe
                 "You cannot delete an item from an array, you must instead set a new array"
               )
             end
-            update_hash[k] = serialize_params(v, original_value)
+            update_hash[k] = serialize_params(v)
           end
         end
 
@@ -175,7 +172,7 @@ module Stripe
         update_hash = {}
         obj.each_with_index do |value, index|
           update = serialize_params(value)
-          if update != {} && (!original_value || update != original_value[index])
+          if update != {}
             update_hash[index] = update
           end
         end

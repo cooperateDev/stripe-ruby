@@ -16,13 +16,7 @@ module Stripe
     end
 
     def retrieve(id, opts={})
-      if id.kind_of?(Hash) # overloaded id
-        retrieve_params = id
-        id = retrieve_params.delete(:id)
-      else
-        retrieve_params = {}
-      end
-      response, opts = request(:get,"#{url}/#{CGI.escape(id)}", retrieve_params, opts)
+      response, opts = request(:get,"#{url}/#{CGI.escape(id)}", {}, opts)
       Util.convert_to_stripe_object(response, opts)
     end
 
