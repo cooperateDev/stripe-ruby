@@ -53,11 +53,5 @@ module Stripe
       card = c.sources.create(:source => "tok_41YJ05ijAaWaFS")
       assert_equal "test_card", card.id
     end
-
-    should "raise if accessing Stripe::Card.retrieve directly" do
-      assert_raises NotImplementedError do
-        Stripe::Card.retrieve "card_12345"
-      end
-    end
   end
 end
