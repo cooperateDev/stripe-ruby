@@ -25,6 +25,7 @@ module Stripe
         'application_fee' => ApplicationFee,
         'balance' => Balance,
         'balance_transaction' => BalanceTransaction,
+        'bank_account' => BankAccount,
         'card' => Card,
         'charge' => Charge,
         'coupon' => Coupon,
@@ -109,7 +110,7 @@ module Stripe
       result = []
       value.each do |elem|
         if elem.is_a?(Hash)
-          result += flatten_params(elem, calculated_key)
+          result += flatten_params(elem, "#{calculated_key}[]")
         elsif elem.is_a?(Array)
           result += flatten_params_array(elem, calculated_key)
         else
@@ -123,25 +124,24 @@ module Stripe
     # Turn this value into an api_key and a set of headers
     def self.normalize_opts(opts)
       case opts
-      when NilClass
-        {}
       when String
         {:api_key => opts}
       when Hash
+        check_api_key!(opts.fetch(:api_key)) if opts.has_key?(:api_key)
         opts.clone
       else
         raise TypeError.new('normalize_opts expects a string or a hash')
       end
     end
 
-    def self.normalize_id(id)
-      if id.kind_of?(Hash) # overloaded id
-        params_hash = id.dup
-        id = params_hash.delete(:id)
-      else
-        params_hash = {}
-      end
-      [id, params_hash]
+    def self.check_string_argument!(key)
+      raise TypeError.new("argument must be a string") unless key.is_a?(String)
+      key
+    end
+
+    def self.check_api_key!(key)
+      raise TypeError.new("api_key must be a string") unless key.is_a?(String)
+      key
     end
   end
 end
