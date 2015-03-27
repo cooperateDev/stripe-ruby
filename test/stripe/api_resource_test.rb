@@ -455,6 +455,21 @@ module Stripe
         acct.save
       end
 
+      should 'not save nested API resources' do
+        ch = Stripe::Charge.construct_from({
+          :id => 'charge_id',
+          :customer => {
+            :object => 'customer',
+            :id => 'customer_id'
+          }
+        })
+
+        @mock.expects(:post).once.with("#{Stripe.api_base}/v1/charges/charge_id", nil, '').returns(test_response({"id" => "charge_id"}))
+
+        ch.customer.description = 'Bob'
+        ch.save
+      end
+
       should 'correctly handle replaced nested objects' do
         acct = Stripe::Account.construct_from({
           :id => 'myid',
@@ -521,7 +536,8 @@ module Stripe
           :id => 'myid',
           :legal_entity => {
             :additional_owners => [{:first_name => 'Bob'}]
-          }
+          },
+          :currencies_supported => ['usd', 'cad']
         })
 
         @mock.expects(:post).once.with("#{Stripe.api_base}/v1/accounts/myid", nil, '').returns(test_response({"id" => "myid"}))
