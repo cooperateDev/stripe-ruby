@@ -1,22 +1,17 @@
 module Stripe
   module TestData
-    def make_response(body, code=200)
+    def test_response(body, code=200)
       # When an exception is raised, restclient clobbers method_missing.  Hence we
       # can't just use the stubs interface.
       body = JSON.generate(body) if !(body.kind_of? String)
       m = mock
-      m.instance_variable_set('@stripe_values', {
-        :body => body,
-        :code => code,
-        :headers => {},
-      })
+      m.instance_variable_set('@stripe_values', { :body => body, :code => code })
       def m.body; @stripe_values[:body]; end
       def m.code; @stripe_values[:code]; end
-      def m.headers; @stripe_values[:headers]; end
       m
     end
 
-    def make_balance(params={})
+    def test_balance(params={})
       {
         :pending => [
           {:amount => 12345, :currency => "usd"}
@@ -29,7 +24,7 @@ module Stripe
       }.merge(params)
     end
 
-    def make_balance_transaction(params={})
+    def test_balance_transaction(params={})
       {
         :amount => 100,
         :net => 41,
@@ -44,15 +39,15 @@ module Stripe
       }.merge(params)
     end
 
-    def make_balance_transaction_array
+    def test_balance_transaction_array
       {
-        :data => [make_balance_transaction, make_balance_transaction, make_balance_transaction],
+        :data => [test_balance_transaction, test_balance_transaction, test_balance_transaction],
         :object => "list",
         :url => "/v1/balance/history"
       }
     end
 
-    def make_application_fee(params={})
+    def test_application_fee(params={})
       id = params[:id] || 'fee_test_fee'
       {
         :refunded => false,
@@ -64,12 +59,12 @@ module Stripe
         :livemode => false,
         :currency => "usd",
         :object => "application_fee",
-        :refunds => make_application_fee_refund_array(id),
+        :refunds => test_application_fee_refund_array(id),
         :created => 1304114826
       }.merge(params)
     end
 
-    def make_application_fee_refund(params = {})
+    def test_application_fee_refund(params = {})
       {
         :object => 'fee_refund',
         :amount => 30,
@@ -81,23 +76,23 @@ module Stripe
       }.merge(params)
     end
 
-    def make_application_fee_array
+    def test_application_fee_array
       {
-        :data => [make_application_fee, make_application_fee, make_application_fee],
+        :data => [test_application_fee, test_application_fee, test_application_fee],
         :object => 'list',
         :url => '/v1/application_fees'
       }
     end
 
-    def make_application_fee_refund_array(fee_id)
+    def test_application_fee_refund_array(fee_id)
       {
-        :data => [make_application_fee_refund, make_application_fee_refund, make_application_fee_refund],
+        :data => [test_application_fee_refund, test_application_fee_refund, test_application_fee_refund],
         :object => 'list',
         :url => '/v1/application_fees/' + fee_id + '/refunds'
       }
     end
 
-    def make_customer(params={})
+    def test_customer(params={})
       id = params[:id] || 'c_test_customer'
       {
         :subscription_history => [],
@@ -108,21 +103,21 @@ module Stripe
         :id => id,
         :default_card => "cc_test_card",
         :created => 1304114758,
-        :sources => make_customer_card_array(id),
+        :sources => test_customer_card_array(id),
         :metadata => {},
-        :subscriptions => make_subscription_array(id)
+        :subscriptions => test_subscription_array(id)
       }.merge(params)
     end
 
-    def make_customer_array
+    def test_customer_array
       {
-        :data => [make_customer, make_customer, make_customer],
+        :data => [test_customer, test_customer, test_customer],
         :object => 'list',
         :url => '/v1/customers'
       }
     end
 
-    def make_charge(params={})
+    def test_charge(params={})
       id = params[:id] || 'ch_test_charge'
       {
         :refunded => false,
@@ -143,36 +138,36 @@ module Stripe
         :currency => "usd",
         :object => "charge",
         :created => 1304114826,
-        :refunds => make_refund_array(id),
+        :refunds => test_refund_array(id),
         :metadata => {}
       }.merge(params)
     end
 
-    def make_charge_array
+    def test_charge_array
       {
-        :data => [make_charge, make_charge, make_charge],
+        :data => [test_charge, test_charge, test_charge],
         :object => 'list',
         :url => '/v1/charges'
       }
     end
 
-    def make_recipient_card_array(recipient_id)
+    def test_recipient_card_array(recipient_id)
       {
-        :data => [make_card, make_card, make_card],
+        :data => [test_card, test_card, test_card],
         :object => 'list',
         :url => '/v1/recipients/' + recipient_id + '/cards'
       }
     end
 
-    def make_customer_card_array(customer_id)
+    def test_customer_card_array(customer_id)
       {
-        :data => [make_card, make_card, make_card],
+        :data => [test_card, test_card, test_card],
         :object => 'list',
         :url => '/v1/customers/' + customer_id + '/sources'
       }
     end
 
-    def make_card(params={})
+    def test_card(params={})
       {
         :type => "Visa",
         :last4 => "4242",
@@ -185,7 +180,7 @@ module Stripe
       }.merge(params)
     end
 
-    def make_coupon(params={})
+    def test_coupon(params={})
       {
         :duration => 'repeating',
         :duration_in_months => 3,
@@ -196,7 +191,7 @@ module Stripe
       }.merge(params)
     end
 
-    def make_file(params={})
+    def test_file(params={})
       {
         :object => "file_upload",
         :id => "fil_test_file",
@@ -208,16 +203,16 @@ module Stripe
       }
     end
 
-    def make_file_array
+    def test_file_array
       {
-        :data => [make_file, make_file, make_file],
+        :data => [test_file, test_file, test_file],
         :object => 'list',
         :url => '/v1/files'
       }
     end
 
     #FIXME nested overrides would be better than hardcoding plan_id
-    def make_subscription(params = {})
+    def test_subscription(params = {})
       plan = params.delete(:plan) || 'gold'
       {
         :current_period_end => 1308681468,
@@ -239,7 +234,7 @@ module Stripe
       }.merge(params)
     end
 
-    def make_refund(params = {})
+    def test_refund(params = {})
       {
         :object => 'refund',
         :amount => 30,
@@ -251,31 +246,31 @@ module Stripe
       }.merge(params)
     end
 
-    def make_subscription_array(customer_id)
+    def test_subscription_array(customer_id)
       {
-        :data => [make_subscription, make_subscription, make_subscription],
+        :data => [test_subscription, test_subscription, test_subscription],
         :object => 'list',
         :url => '/v1/customers/' + customer_id + '/subscriptions'
       }
     end
 
-    def make_refund_array(charge_id)
+    def test_refund_array(charge_id)
       {
-        :data => [make_refund, make_refund, make_refund],
+        :data => [test_refund, test_refund, test_refund],
         :object => 'list',
         :url => '/v1/charges/' + charge_id + '/refunds'
       }
     end
 
-    def make_reversal_array(transfer_id)
+    def test_reversal_array(transfer_id)
       {
-        :data => [make_reversal, make_reversal, make_reversal],
+        :data => [test_reversal, test_reversal, test_reversal],
         :object => 'list',
         :url => '/v1/transfers/' + transfer_id + '/reversals'
       }
     end
 
-    def make_invoice
+    def test_invoice
       {
         :id => 'in_test_invoice',
         :object => 'invoice',
@@ -315,8 +310,8 @@ module Stripe
       }
     end
 
-    def make_paid_invoice
-      make_invoice.merge({
+    def test_paid_invoice
+      test_invoice.merge({
           :attempt_count => 1,
           :attempted => true,
           :closed => true,
@@ -327,15 +322,15 @@ module Stripe
         })
     end
 
-    def make_invoice_customer_array
+    def test_invoice_customer_array
       {
-        :data => [make_invoice],
+        :data => [test_invoice],
         :object => 'list',
         :url => '/v1/invoices?customer=test_customer'
       }
     end
 
-    def make_recipient(params={})
+    def test_recipient(params={})
       id = params[:id] || 'rp_test_recipient'
       {
         :name => "Stripe User",
@@ -343,7 +338,7 @@ module Stripe
         :livemode => false,
         :object => "recipient",
         :id => "rp_test_recipient",
-        :cards => make_recipient_card_array(id),
+        :cards => test_recipient_card_array(id),
         :default_card => "debit_test_card",
         :active_account => {
           :last4 => "6789",
@@ -357,15 +352,15 @@ module Stripe
       }.merge(params)
     end
 
-    def make_recipient_array
+    def test_recipient_array
       {
-        :data => [make_recipient, make_recipient, make_recipient],
+        :data => [test_recipient, test_recipient, test_recipient],
         :object => 'list',
         :url => '/v1/recipients'
       }
     end
 
-    def make_transfer(params={})
+    def test_transfer(params={})
       {
         :status => 'pending',
         :amount => 100,
@@ -379,7 +374,7 @@ module Stripe
         :fee => 0,
         :fee_details => [],
         :id => "tr_test_transfer",
-        :reversals => make_reversal_array('tr_test_transfer'),
+        :reversals => test_reversal_array('tr_test_transfer'),
         :livemode => false,
         :currency => "usd",
         :object => "transfer",
@@ -388,21 +383,21 @@ module Stripe
       }.merge(params)
     end
 
-    def make_transfer_array
+    def test_transfer_array
       {
-        :data => [make_transfer, make_transfer, make_transfer],
+        :data => [test_transfer, test_transfer, test_transfer],
         :object => 'list',
         :url => '/v1/transfers'
       }
     end
 
-    def make_canceled_transfer
-      make_transfer.merge({
+    def test_canceled_transfer
+      test_transfer.merge({
         :status => 'canceled'
       })
     end
 
-    def make_reversal(params={})
+    def test_reversal(params={})
       {
         :object => 'transfer_reversal',
         :amount => 30,
@@ -414,7 +409,7 @@ module Stripe
       }.merge(params)
     end
 
-    def make_bitcoin_receiver(params={})
+    def test_bitcoin_receiver(params={})
       {
         :id => 'btcrcv_test_receiver',
         :amount => 100,
@@ -422,19 +417,19 @@ module Stripe
         :description => 'some details',
         :metadata => {},
         :object => 'bitcoin_receiver',
-        :transactions => make_bitcoin_transaction_array
+        :transactions => test_bitcoin_transaction_array
       }.merge(params)
     end
 
-    def make_bitcoin_receiver_array
+    def test_bitcoin_receiver_array
       {
-        :data => [make_bitcoin_receiver, make_bitcoin_receiver, make_bitcoin_receiver],
+        :data => [test_bitcoin_receiver, test_bitcoin_receiver, test_bitcoin_receiver],
         :object => 'list',
         :url => '/v1/bitcoin/receivers'
       }
     end
 
-    def make_bitcoin_transaction(params={})
+    def test_bitcoin_transaction(params={})
       {
         :id => 'btctxn_test_transaction',
         :object => 'bitcoin_transaction',
@@ -445,15 +440,15 @@ module Stripe
       }.merge(params)
     end
 
-    def make_bitcoin_transaction_array
+    def test_bitcoin_transaction_array
       {
-        :data => [make_bitcoin_transaction, make_bitcoin_transaction, make_bitcoin_transaction],
+        :data => [test_bitcoin_transaction, test_bitcoin_transaction, test_bitcoin_transaction],
         :object => 'list',
         :url => "/v1/bitcoin/receivers/btcrcv_test_receiver/transactions"
       }
     end
 
-    def make_invalid_api_key_error
+    def test_invalid_api_key_error
       {
         :error => {
           :type => "invalid_request_error",
@@ -462,7 +457,7 @@ module Stripe
       }
     end
 
-    def make_invalid_exp_year_error
+    def test_invalid_exp_year_error
       {
         :error => {
           :code => "invalid_expiry_year",
@@ -473,7 +468,7 @@ module Stripe
       }
     end
 
-    def make_missing_id_error
+    def test_missing_id_error
       {
         :error => {
           :param => "id",
@@ -483,7 +478,7 @@ module Stripe
       }
     end
 
-    def make_api_error
+    def test_api_error
       {
         :error => {
           :type => "api_error"
@@ -491,7 +486,7 @@ module Stripe
       }
     end
 
-    def make_delete_discount_response
+    def test_delete_discount_response
       {
         :deleted => true,
         :id => "di_test_coupon"

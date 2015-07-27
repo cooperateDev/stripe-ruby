@@ -1,12 +1,9 @@
 # Stripe Ruby bindings
 # API spec at https://stripe.com/docs/api
 require 'cgi'
-require 'openssl'
-require 'rbconfig'
 require 'set'
-require 'socket'
-
-require 'rest-client'
+require 'openssl'
+require 'rest_client'
 require 'json'
 
 # Version
@@ -29,6 +26,7 @@ require 'stripe/account'
 require 'stripe/balance'
 require 'stripe/balance_transaction'
 require 'stripe/customer'
+require 'stripe/certificate_blacklist'
 require 'stripe/invoice'
 require 'stripe/invoice_item'
 require 'stripe/charge'
@@ -39,7 +37,6 @@ require 'stripe/token'
 require 'stripe/event'
 require 'stripe/transfer'
 require 'stripe/recipient'
-require 'stripe/bank_account'
 require 'stripe/card'
 require 'stripe/subscription'
 require 'stripe/application_fee'
@@ -65,6 +62,7 @@ module Stripe
 
   @ssl_bundle_path  = DEFAULT_CA_BUNDLE_PATH
   @verify_ssl_certs = true
+  @CERTIFICATE_VERIFIED = false
 
 
   class << self
@@ -93,17 +91,15 @@ module Stripe
         'email support@stripe.com if you have any questions.)')
     end
 
-    if verify_ssl_certs
-      request_opts = {:verify_ssl => OpenSSL::SSL::VERIFY_PEER,
-                      :ssl_ca_file => @ssl_bundle_path}
-    else
-      request_opts = {:verify_ssl => false}
-      unless @verify_ssl_warned
-        @verify_ssl_warned = true
-        $stderr.puts("WARNING: Running without SSL cert verification. " \
-          "You should never do this in production. " \
-          "Execute 'Stripe.verify_ssl_certs = true' to enable verification.")
-      end
+    request_opts = { :verify_ssl => false }
+
+    if ssl_preflight_passed?
+      request_opts.update(:verify_ssl => OpenSSL::SSL::VERIFY_PEER,
+                          :ssl_ca_file => @ssl_bundle_path)
+    end
+
+    if @verify_ssl_certs and !@CERTIFICATE_VERIFIED
+      @CERTIFICATE_VERIFIED = CertificateBlacklist.check_ssl_cert(api_base_url, @ssl_bundle_path)
     end
 
     params = Util.objects_to_ids(params)
@@ -139,8 +135,8 @@ module Stripe
         raise
       end
     rescue RestClient::ExceptionWithResponse => e
-      if e.response
-        handle_api_error(e.response)
+      if rcode = e.http_code and rbody = e.http_body
+        handle_api_error(rcode, rbody)
       else
         handle_restclient_error(e, api_base_url)
       end
@@ -153,6 +149,23 @@ module Stripe
 
   private
 
+  def self.ssl_preflight_passed?
+    if !verify_ssl_certs && !@no_verify
+      $stderr.puts "WARNING: Running without SSL cert verification. " \
+        "Execute 'Stripe.verify_ssl_certs = true' to enable verification."
+
+      @no_verify = true
+
+    elsif !Util.file_readable(@ssl_bundle_path) && !@no_bundle
+      $stderr.puts "WARNING: Running without SSL cert verification " \
+        "because #{@ssl_bundle_path} isn't readable"
+
+      @no_bundle = true
+    end
+
+    !(@no_verify || @no_bundle)
+  end
+
   def self.user_agent
     @uname ||= get_uname
     lang_version = "#{RUBY_VERSION} p#{RUBY_PATCHLEVEL} (#{RUBY_RELEASE_DATE})"
@@ -162,41 +175,17 @@ module Stripe
       :lang => 'ruby',
       :lang_version => lang_version,
       :platform => RUBY_PLATFORM,
-      :engine => defined?(RUBY_ENGINE) ? RUBY_ENGINE : '',
       :publisher => 'stripe',
-      :uname => @uname,
-      :hostname => Socket.gethostname,
+      :uname => @uname
     }
 
   end
 
   def self.get_uname
-    if File.exist?('/proc/version')
-      File.read('/proc/version').strip
-    else
-      case RbConfig::CONFIG['host_os']
-      when /linux|darwin|bsd|sunos|solaris|cygwin/i
-        _uname_uname
-      when /mswin|mingw/i
-        _uname_ver
-      else
-        "unknown platform"
-      end
-    end
-  end
-
-  def self._uname_uname
-    (`uname -a 2>/dev/null` || '').strip
-  rescue Errno::ENOMEM # couldn't create subprocess
+    `uname -a 2>/dev/null`.strip if RUBY_PLATFORM =~ /linux|darwin/i
+  rescue Errno::ENOMEM => ex # couldn't create subprocess
     "uname lookup failed"
   end
-
-  def self._uname_ver
-    (`ver` || '').strip
-  rescue Errno::ENOMEM # couldn't create subprocess
-    "uname lookup failed"
-  end
-
 
   def self.uri_encode(params)
     Util.flatten_params(params).
@@ -241,46 +230,45 @@ module Stripe
                  "(HTTP response code was #{rcode})", rcode, rbody)
   end
 
-  def self.handle_api_error(resp)
+  def self.handle_api_error(rcode, rbody)
     begin
-      error_obj = JSON.parse(resp.body)
+      error_obj = JSON.parse(rbody)
       error_obj = Util.symbolize_names(error_obj)
       error = error_obj[:error] or raise StripeError.new # escape from parsing
 
     rescue JSON::ParserError, StripeError
-      raise general_api_error(resp.code, resp.body)
+      raise general_api_error(rcode, rbody)
     end
 
-    case resp.code
+    case rcode
     when 400, 404
-      raise invalid_request_error(error, resp, error_obj)
+      raise invalid_request_error error, rcode, rbody, error_obj
     when 401
-      raise authentication_error(error, resp, error_obj)
+      raise authentication_error error, rcode, rbody, error_obj
     when 402
-      raise card_error(error, resp, error_obj)
+      raise card_error error, rcode, rbody, error_obj
     else
-      raise api_error(error, resp, error_obj)
+      raise api_error error, rcode, rbody, error_obj
     end
 
   end
 
-  def self.invalid_request_error(error, resp, error_obj)
-    InvalidRequestError.new(error[:message], error[:param], resp.code,
-                            resp.body, error_obj, resp.headers)
+  def self.invalid_request_error(error, rcode, rbody, error_obj)
+    InvalidRequestError.new(error[:message], error[:param], rcode,
+                            rbody, error_obj)
   end
 
-  def self.authentication_error(error, resp, error_obj)
-    AuthenticationError.new(error[:message], resp.code, resp.body, error_obj,
-                            resp.headers)
+  def self.authentication_error(error, rcode, rbody, error_obj)
+    AuthenticationError.new(error[:message], rcode, rbody, error_obj)
   end
 
-  def self.card_error(error, resp, error_obj)
+  def self.card_error(error, rcode, rbody, error_obj)
     CardError.new(error[:message], error[:param], error[:code],
-                  resp.code, resp.body, error_obj, resp.headers)
+                  rcode, rbody, error_obj)
   end
 
-  def self.api_error(error, resp, error_obj)
-    APIError.new(error[:message], resp.code, resp.body, error_obj, resp.headers)
+  def self.api_error(error, rcode, rbody, error_obj)
+    APIError.new(error[:message], rcode, rbody, error_obj)
   end
 
   def self.handle_restclient_error(e, api_base_url=nil)
