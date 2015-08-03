@@ -43,7 +43,8 @@ module Stripe
         'transfer' => Transfer,
         'transfer_reversal' => Reversal,
         'bitcoin_receiver' => BitcoinReceiver,
-        'bitcoin_transaction' => BitcoinTransaction
+        'bitcoin_transaction' => BitcoinTransaction,
+        'dispute' => Dispute
       }
     end
 
