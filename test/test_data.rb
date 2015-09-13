@@ -510,15 +510,6 @@ module Stripe
       }
     end
 
-    def make_rate_limit_error
-      {
-        :error => {
-          :type => "invalid_request_error",
-          :message => "Too many requests in a period of time."
-        }
-      }
-    end
-
     def make_api_error
       {
         :error => {
@@ -531,6 +522,74 @@ module Stripe
       {
         :deleted => true,
         :id => "di_test_coupon"
+      }
+    end
+
+    def make_product(params={})
+      {
+        :id => "pr_test_product",
+        :created => 1441992477,
+        :updated => 1441992477,
+        :object => "product",
+        :livemode => false,
+        :name => "Test Product",
+        :caption => "Comfy comfu",
+        :description => "Testing",
+        :active => true,
+        :attributes => [],
+        :shippable => true,
+        :metadata => {},
+        :url => "http://example.com/product",
+        :package_dimensions => nil,
+        :images => [],
+        :skus => make_sku_array("pr_test_product")
+      }.merge(params)
+    end
+
+    def make_product_array
+      {
+        :object => "list",
+        :url => "/v1/products",
+        :data => [
+          make_product,
+          make_product,
+          make_product,
+        ],
+      }
+    end
+
+    def make_sku(params={})
+      {
+        :id => "12345",
+        :created => 1441992494,
+        :updated => 1441992494,
+        :object => "sku",
+        :livemode => false,
+        :product => "pr_test_product",
+        :image => nil,
+        :active => true,
+        :price => 999,
+        :currency => "usd",
+        :inventory => {
+          :type => "infinite",
+          :quantity => nil,
+          :value => nil,
+        },
+        :attributes => {},
+        :metadata => {},
+        :package_dimensions => nil,
+      }.merge(params)
+    end
+
+    def make_sku_array(product_id, params={})
+      {
+        :object => "list",
+        :url => "/v1/skus",
+        :data => [
+          make_sku(:product => product_id),
+          make_sku(:product => product_id),
+          make_sku(:product => product_id),
+        ]
       }
     end
   end
