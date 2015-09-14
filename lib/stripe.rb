@@ -49,6 +49,9 @@ require 'stripe/application_fee_refund'
 require 'stripe/bitcoin_receiver'
 require 'stripe/bitcoin_transaction'
 require 'stripe/dispute'
+require 'stripe/product'
+require 'stripe/sku'
+require 'stripe/order'
 
 # Errors
 require 'stripe/errors/stripe_error'
@@ -250,8 +253,7 @@ module Stripe
     begin
       error_obj = JSON.parse(resp.body)
       error_obj = Util.symbolize_names(error_obj)
-      error = error_obj[:error]
-      raise StripeError.new unless error && error.is_a?(Hash)
+      error = error_obj[:error] or raise StripeError.new # escape from parsing
 
     rescue JSON::ParserError, StripeError
       raise general_api_error(resp.code, resp.body)
