@@ -44,10 +44,7 @@ module Stripe
         'transfer_reversal' => Reversal,
         'bitcoin_receiver' => BitcoinReceiver,
         'bitcoin_transaction' => BitcoinTransaction,
-        'dispute' => Dispute,
-        'product' => Product,
-        'sku' => SKU,
-        'order' => Order,
+        'dispute' => Dispute
       }
     end
 

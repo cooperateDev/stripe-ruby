@@ -125,6 +125,28 @@ module Stripe
         'sk_test_local')
     end
 
+    should "handle error response with empty body" do
+      response = make_response('', 500)
+      @mock.expects(:post).once.raises(RestClient::ExceptionWithResponse.new(response, 500))
+
+      e = assert_raises Stripe::APIError do
+        Stripe::Charge.create
+      end
+
+      assert_equal 'Invalid response object from API: "" (HTTP response code was 500)', e.message
+    end
+
+    should "handle error response with non-object error value" do
+      response = make_response('{"error": "foo"}', 500)
+      @mock.expects(:post).once.raises(RestClient::ExceptionWithResponse.new(response, 500))
+
+      e = assert_raises Stripe::APIError do
+        Stripe::Charge.create
+      end
+
+      assert_equal 'Invalid response object from API: "{\"error\": \"foo\"}" (HTTP response code was 500)', e.message
+    end
+
     should "have default open and read timeouts" do
       assert_equal Stripe.open_timeout, 30
       assert_equal Stripe.read_timeout, 80
@@ -265,6 +287,18 @@ module Stripe
           Stripe::Customer.retrieve("foo")
         rescue Stripe::InvalidRequestError => e
           assert_equal(404, e.http_status)
+          assert_equal(true, !!e.http_body)
+          assert_equal(true, e.json_body.kind_of?(Hash))
+        end
+      end
+
+      should "a 429 should give a RateLimitError with http status, body, and JSON body" do
+        response = make_response(make_rate_limit_error, 429)
+        @mock.expects(:get).once.raises(RestClient::ExceptionWithResponse.new(response, 429))
+        begin
+          Stripe::Customer.retrieve("foo")
+        rescue Stripe::RateLimitError => e
+          assert_equal(429, e.http_status)
           assert_equal(true, !!e.http_body)
           assert_equal(true, e.json_body.kind_of?(Hash))
         end
