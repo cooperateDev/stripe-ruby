@@ -11,7 +11,7 @@ module Stripe
 
     def initialize(id=nil, opts={})
       id, @retrieve_params = Util.normalize_id(id)
-      @opts = opts
+      @opts = Util.normalize_opts(opts)
       @values = {}
       # This really belongs in APIResource, but not putting it there allows us
       # to have a unified inspect method
@@ -21,6 +21,7 @@ module Stripe
     end
 
     def self.construct_from(values, opts={})
+      values = Stripe::Util.symbolize_names(values)
       self.new(values[:id]).refresh_from(values, opts)
     end
 
@@ -34,23 +35,27 @@ module Stripe
     end
 
     def refresh_from(values, opts, partial=false)
-      @opts = opts
+      @opts = Util.normalize_opts(opts)
       @original_values = Marshal.load(Marshal.dump(values)) # deep copy
+
       removed = partial ? Set.new : Set.new(@values.keys - values.keys)
       added = Set.new(values.keys - @values.keys)
+
       # Wipe old state before setting new.  This is useful for e.g. updating a
       # customer, where there is no persistent card parameter.  Mark those values
       # which don't persist as transient
 
       instance_eval do
         remove_accessors(removed)
-        add_accessors(added)
+        add_accessors(added, values)
       end
+
       removed.each do |k|
         @values.delete(k)
         @transient_values.add(k)
         @unsaved_values.delete(k)
       end
+
       values.each do |k, v|
         @values[k] = Util.convert_to_stripe_object(v, @opts)
         @transient_values.delete(k)
@@ -211,7 +216,7 @@ module Stripe
       end
     end
 
-    def add_accessors(keys)
+    def add_accessors(keys, values)
       metaclass.instance_eval do
         keys.each do |k|
           next if @@permanent_attributes.include?(k)
@@ -227,6 +232,11 @@ module Stripe
             @values[k] = v
             @unsaved_values.add(k)
           end
+
+          if [FalseClass, TrueClass].include?(values[k].class)
+            k_bool = :"#{k}?"
+            define_method(k_bool) { @values[k] }
+          end
         end
       end
     end
@@ -235,7 +245,10 @@ module Stripe
       # TODO: only allow setting in updateable classes.
       if name.to_s.end_with?('=')
         attr = name.to_s[0...-1].to_sym
-        add_accessors([attr])
+
+        # the second argument is only required when adding boolean accessors
+        add_accessors([attr], {})
+
         begin
           mth = method(name)
         rescue NameError

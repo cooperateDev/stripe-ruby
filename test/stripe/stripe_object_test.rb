@@ -9,6 +9,12 @@ module Stripe
       assert !obj.respond_to?(:baz)
     end
 
+    should "marshal be insensitive to strings vs. symbols when constructin" do
+      obj = Stripe::StripeObject.construct_from({ :id => 1, 'name' => 'Stripe' })
+      assert_equal 1, obj[:id]
+      assert_equal 'Stripe', obj[:name]
+    end
+
     should "marshal a stripe object correctly" do
       obj = Stripe::StripeObject.construct_from({ :id => 1, :name => 'Stripe' }, {:api_key => 'apikey'})
       m = Marshal.load(Marshal.dump(obj))
@@ -24,6 +30,13 @@ module Stripe
       obj = Stripe::StripeObject.construct_from({ :id => 1, :nested => nested, :list => [nested] })
       expected_hash = { :id => 1, :nested => nested_hash, :list => [nested_hash] }
       assert_equal expected_hash, obj.to_hash
+    end
+
+    should "assign question mark accessors for booleans" do
+      obj = Stripe::StripeObject.construct_from({ :id => 1, :bool => true, :not_bool => 'bar' })
+      assert obj.respond_to?(:bool?)
+      assert obj.bool?
+      refute obj.respond_to?(:not_bool?)
     end
   end
 end
