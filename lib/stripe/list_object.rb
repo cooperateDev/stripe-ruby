@@ -1,6 +1,5 @@
 module Stripe
   class ListObject < StripeObject
-    include Enumerable
     include Stripe::APIOperations::Request
 
     def [](k)
@@ -14,11 +13,6 @@ module Stripe
 
     def each(&blk)
       self.data.each(&blk)
-    end
-
-    # Returns true if the page object contains no elements.
-    def empty?
-      self.data.empty?
     end
 
     def retrieve(id, opts={})

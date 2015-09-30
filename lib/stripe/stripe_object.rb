@@ -11,7 +11,7 @@ module Stripe
 
     def initialize(id=nil, opts={})
       id, @retrieve_params = Util.normalize_id(id)
-      @opts = Util.normalize_opts(opts)
+      @opts = opts
       @values = {}
       # This really belongs in APIResource, but not putting it there allows us
       # to have a unified inspect method
@@ -21,7 +21,6 @@ module Stripe
     end
 
     def self.construct_from(values, opts={})
-      values = Stripe::Util.symbolize_names(values)
       self.new(values[:id]).refresh_from(values, opts)
     end
 
@@ -35,12 +34,10 @@ module Stripe
     end
 
     def refresh_from(values, opts, partial=false)
-      @opts = Util.normalize_opts(opts)
+      @opts = opts
       @original_values = Marshal.load(Marshal.dump(values)) # deep copy
-
       removed = partial ? Set.new : Set.new(@values.keys - values.keys)
       added = Set.new(values.keys - @values.keys)
-
       # Wipe old state before setting new.  This is useful for e.g. updating a
       # customer, where there is no persistent card parameter.  Mark those values
       # which don't persist as transient
@@ -49,13 +46,11 @@ module Stripe
         remove_accessors(removed)
         add_accessors(added)
       end
-
       removed.each do |k|
         @values.delete(k)
         @transient_values.add(k)
         @unsaved_values.delete(k)
       end
-
       values.each do |k, v|
         @values[k] = Util.convert_to_stripe_object(v, @opts)
         @transient_values.delete(k)
