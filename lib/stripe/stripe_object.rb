@@ -21,7 +21,6 @@ module Stripe
     end
 
     def self.construct_from(values, opts={})
-      values = Stripe::Util.symbolize_names(values)
       self.new(values[:id]).refresh_from(values, opts)
     end
 
