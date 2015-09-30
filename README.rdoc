@@ -40,14 +40,4 @@ compromised in transit and alter the code of gems fetched securely over https:
 
 == Development
 
-Run all tests:
-
-    bundle exec rake
-
-Run a single test suite:
-
-    bundle exec ruby -Ilib/ test/stripe/util_test.rb
-
-Run a single test:
-
-    bundle exec ruby -Ilib/ test/stripe/util_test.rb -n /should.convert.names.to.symbols/
+Test cases can be run with: `bundle exec rake test`
