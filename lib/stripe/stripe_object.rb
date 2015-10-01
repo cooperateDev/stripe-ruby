@@ -56,49 +56,13 @@ module Stripe
         @unsaved_values.delete(k)
       end
 
-      update_attributes_with_options(values, opts: opts)
-      values.each do |k, _|
+      values.each do |k, v|
+        @values[k] = Util.convert_to_stripe_object(v, @opts)
         @transient_values.delete(k)
         @unsaved_values.delete(k)
       end
 
       return self
-    end
-
-    # Mass assigns attributes on the model.
-    def update_attributes(values)
-      update_attributes_with_options(values, {})
-    end
-
-    # Mass assigns attributes on the model.
-    #
-    # This is a version of +update_attributes+ that takes some extra options
-    # for internal use.
-    #
-    # ==== Options
-    #
-    # * +:opts:+ Options for StripeObject like an API key.
-    # * +:raise_error:+ Set to false to suppress ArgumentErrors on keys that
-    #   don't exist.
-    def update_attributes_with_options(values, options={})
-      # `opts` are StripeObject options
-      opts        = options.fetch(:opts, {})
-      raise_error = options.fetch(:raise_error, true)
-
-      values.each do |k, v|
-        if !@@permanent_attributes.include?(k) && !self.respond_to?(:"#{k}=")
-          if raise_error
-            raise ArgumentError,
-              "#{k} is not an attribute that can be assigned on this object"
-          else
-            next
-          end
-        end
-
-        @values[k] = Util.convert_to_stripe_object(v, opts)
-        @unsaved_values.add(k)
-      end
-      self
     end
 
     def [](k)
@@ -241,9 +205,15 @@ module Stripe
       class << self; self; end
     end
 
+    def protected_fields
+      []
+    end
+
     def remove_accessors(keys)
+      f = protected_fields
       metaclass.instance_eval do
         keys.each do |k|
+          next if f.include?(k)
           next if @@permanent_attributes.include?(k)
           k_eq = :"#{k}="
           remove_method(k) if method_defined?(k)
@@ -253,8 +223,10 @@ module Stripe
     end
 
     def add_accessors(keys, values)
+      f = protected_fields
       metaclass.instance_eval do
         keys.each do |k|
+          next if f.include?(k)
           next if @@permanent_attributes.include?(k)
           k_eq = :"#{k}="
           define_method(k) { @values[k] }
