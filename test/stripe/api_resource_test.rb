@@ -545,10 +545,6 @@ module Stripe
           :id => 'myid',
           :legal_entity => {
             :last_name => 'Smith',
-            :address => {
-              :line1 => "test",
-              :city => "San Francisco"
-            }
           }
         })
 
@@ -556,12 +552,12 @@ module Stripe
           "#{Stripe.api_base}/v1/accounts/myid",
           nil,
           any_of(
-            'legal_entity[address][line1]=Test2&legal_entity[address][city]=',
-            'legal_entity[address][city]=&legal_entity[address][line1]=Test2'
+            'legal_entity[first_name]=Bob&legal_entity[last_name]=',
+            'legal_entity[last_name]=&legal_entity[first_name]=Bob'
           )
         ).returns(make_response({"id" => "myid"}))
 
-        acct.legal_entity.address = {:line1 => 'Test2'}
+        acct.legal_entity = {:first_name => 'Bob'}
         acct.save
       end
 
@@ -638,10 +634,23 @@ module Stripe
           :display_name => nil,
         })
 
-        @mock.expects(:post).once.with("#{Stripe.api_base}/v1/accounts", nil, 'display_name=stripe').returns(make_response({"id" => "charge_id"}))
+        @mock.expects(:post).once.with("#{Stripe.api_base}/v1/accounts", nil, 'display_name=stripe').
+          returns(make_response({"id" => "charge_id"}))
 
         account.display_name = 'stripe'
         account.save
+      end
+
+      should 'set attributes as part of save' do
+        account = Stripe::Account.construct_from({
+          :id => nil,
+          :display_name => nil,
+        })
+
+        @mock.expects(:post).once.with("#{Stripe.api_base}/v1/accounts", nil, 'display_name=stripe').
+          returns(make_response({"id" => "charge_id"}))
+
+        account.save(display_name: 'stripe')
       end
     end
   end
