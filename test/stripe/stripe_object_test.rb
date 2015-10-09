@@ -11,6 +11,17 @@ module Stripe
       refute obj1 == obj3
     end
 
+    should "implement #deleted?" do
+      obj = Stripe::StripeObject.construct_from({})
+      refute obj.deleted?
+
+      obj = Stripe::StripeObject.construct_from({ :deleted => false })
+      refute obj.deleted?
+
+      obj = Stripe::StripeObject.construct_from({ :deleted => true })
+      assert obj.deleted?
+    end
+
     should "implement #respond_to" do
       obj = Stripe::StripeObject.construct_from({ :id => 1, :foo => 'bar' })
       assert obj.respond_to?(:id)
@@ -53,10 +64,11 @@ module Stripe
       obj.update_attributes(:name => 'STRIPE')
       assert_equal "STRIPE", obj.name
 
-      e = assert_raises(ArgumentError) do
-        obj.update_attributes(:foo => 'bar')
-      end
-      assert_equal "foo is not an attribute that can be assigned on this object", e.message
+      # unfortunately, we even assign unknown properties to duplicate the
+      # behavior that we currently have via magic accessors with
+      # method_missing
+      obj.update_attributes(:unknown => 'foo')
+      assert_equal "foo", obj.unknown
     end
 
     should "warn that #refresh_from is deprecated" do

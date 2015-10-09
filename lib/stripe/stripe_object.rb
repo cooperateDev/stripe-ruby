@@ -34,6 +34,13 @@ module Stripe
       @values == other.instance_variable_get(:@values)
     end
 
+    # Indicates whether or not the resource has been deleted on the server.
+    # Note that some, but not all, resources can indicate whether they have
+    # been deleted.
+    def deleted?
+      @values.fetch(:deleted, false)
+    end
+
     def to_s(*args)
       JSON.pretty_generate(@values)
     end
@@ -56,8 +63,23 @@ module Stripe
     deprecate :refresh_from, "#update_attributes", 2016, 01
 
     # Mass assigns attributes on the model.
-    def update_attributes(values)
-      update_attributes_with_options(values, {})
+    #
+    # This is a version of +update_attributes+ that takes some extra options
+    # for internal use.
+    #
+    # ==== Attributes
+    #
+    # * +values+ - Hash of values to use to update the current attributes of
+    #   the object.
+    #
+    # ==== Options
+    #
+    # * +:opts+ Options for StripeObject like an API key.
+    def update_attributes(values, opts = {})
+      values.each do |k, v|
+        @values[k] = Util.convert_to_stripe_object(v, opts)
+        @unsaved_values.add(k)
+      end
     end
 
     def [](k)
@@ -311,7 +333,7 @@ module Stripe
         @unsaved_values.delete(k)
       end
 
-      update_attributes_with_options(values, :opts => opts)
+      update_attributes(values, :opts => opts)
       values.each do |k, _|
         @transient_values.delete(k)
         @unsaved_values.delete(k)
