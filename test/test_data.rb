@@ -152,13 +152,7 @@ module Stripe
         :object => "charge",
         :created => 1304114826,
         :refunds => make_refund_array(id),
-        :metadata => {},
-        :outcome => {
-          type: 'authorized',
-          reason: nil,
-          seller_message: 'Payment complete.',
-          network_status: 'approved_by_network',
-        },
+        :metadata => {}
       }.merge(params)
     end
 
