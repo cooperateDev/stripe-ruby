@@ -8,9 +8,9 @@ spec = Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.9.3'
   s.summary = 'Ruby bindings for the Stripe API'
   s.description = 'Stripe is the easiest way to accept payments online.  See https://stripe.com for details.'
-  s.authors = ['Ross Boucher', 'Greg Brockman']
-  s.email = ['boucher@stripe.com', 'gdb@stripe.com']
-  s.homepage = 'https://stripe.com/api'
+  s.author = 'Stripe'
+  s.email = 'support@stripe.com'
+  s.homepage = 'https://stripe.com/docs/api/ruby'
   s.license = 'MIT'
 
   s.add_dependency('rest-client', '~> 1.4')

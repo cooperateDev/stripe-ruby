@@ -118,7 +118,7 @@ module Stripe
         :created => 1304114758,
         :sources => make_customer_card_array(id),
         :metadata => {},
-        :subscriptions => make_subscription_array(id)
+        :subscriptions => make_customer_subscription_array(id)
       }.merge(params)
     end
 
@@ -289,7 +289,15 @@ module Stripe
       }.merge(params)
     end
 
-    def make_subscription_array(customer_id)
+    def make_subscription_array
+      {
+        :data => [make_subscription, make_subscription, make_subscription],
+        :object => 'list',
+        :resource_url => '/v1/subscriptions'
+      }
+    end
+
+    def make_customer_subscription_array(customer_id)
       {
         :data => [make_subscription, make_subscription, make_subscription],
         :object => 'list',
@@ -315,7 +323,7 @@ module Stripe
       }
     end
 
-    def make_invoice
+    def make_invoice(params={})
       {
         :id => 'in_test_invoice',
         :object => 'invoice',
@@ -353,7 +361,7 @@ module Stripe
         :discount => nil,
         :ending_balance => nil,
         :next_payment_attempt => 1349825350,
-      }
+      }.merge(params)
     end
 
     def make_paid_invoice
@@ -366,6 +374,17 @@ module Stripe
           :ending_balance => 0,
           :next_payment_attempt => nil,
         })
+    end
+
+    def make_invoice_item(params={})
+      {
+        id: "ii_test_invoice_item",
+        object: "invoiceitem",
+        date: 1466982411,
+        invoice: "in_test_invoice",
+        livemode: false,
+        metadata: {},
+      }.merge(params)
     end
 
     def make_invoice_customer_array
@@ -678,6 +697,57 @@ module Stripe
       }).merge(params)
     end
 
+    def make_partially_returned_order(params={})
+      make_paid_order.merge({
+          :returns => make_order_return_array,
+        }).merge(params)
+    end
+
+    def make_order_return(params={})
+      {
+        :id => "orret_18CI1jDAu10Yox5R5kGPgbLN",
+        :object => "order_return",
+        :amount => 1220,
+        :created => 1463529303,
+        :currency => "usd",
+        :items => [
+          {
+            :object => "order_item",
+            :amount => 200,
+            :currency => "usd",
+            :description => "Just a SKU",
+            :parent => "sku_80NAUPJ9dpYtck",
+            :quantity => 2,
+            :type => "sku"
+          },
+          {
+            :object => "order_item",
+            :amount => 20,
+            :currency => "usd",
+            :description => "Fair enough",
+            :parent => nil,
+            :quantity => nil,
+            :type => "tax"
+          },
+        ],
+        :livemode => false,
+        :order => "or_189jaGDAu10Yox5R0F6LoH6K",
+        :refund => nil,
+      }.merge(params)
+    end
+
+    def make_order_return_array
+      {
+        :object => "list",
+        :resource_url => "/v1/order_returns",
+        :data => [
+          make_order_return,
+          make_order_return,
+          make_order_return,
+        ]
+      }
+    end
+
     def country_spec_array
       {
         :object => "list",
@@ -733,6 +803,35 @@ module Stripe
           }
         }
       }.merge(params)
+    end
+
+    def make_plan(params={})
+      {
+        id: "silver",
+        object: "plan",
+        amount: 1000,
+        created: 1463962497,
+        currency: "usd",
+        interval: "year",
+        interval_count: 1,
+        livemode: false,
+        metadata: {},
+        name: "Silver",
+        statement_descriptor: nil,
+        trial_period_days: nil,
+      }.merge(params)
+    end
+
+    def make_plan_array
+      {
+        :object => "list",
+        :resource_url => "/v1/plans",
+        :data => [
+          make_plan,
+          make_plan,
+          make_plan,
+        ]
+      }
     end
   end
 end

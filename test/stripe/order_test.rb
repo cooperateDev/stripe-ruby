@@ -19,13 +19,21 @@ module Stripe
       end
     end
 
-    should "orders should be updateable" do
+    should "orders should be saveable" do
       @mock.expects(:get).once.returns(make_response(make_order))
       @mock.expects(:post).once.returns(make_response(make_order))
       p = Stripe::Order.new("test_order")
       p.refresh
       p.status = "fulfilled"
       p.save
+    end
+
+    should "orders should be updateable" do
+      @mock.expects(:post).once.
+        with('https://api.stripe.com/v1/orders/test_order', nil, 'status=fulfilled').
+        returns(make_response(make_order(status: 'fulfilled')))
+      ii = Stripe::Order.update("test_order", status: 'fulfilled')
+      assert_equal('fulfilled', ii.status)
     end
 
     should "orders should allow metadata updates" do
@@ -47,6 +55,18 @@ module Stripe
         returns(make_response(make_paid_order))
       order.pay(:token => 'test_token')
       assert_equal "paid", order.status
+    end
+
+    should "return an order" do
+      @mock.expects(:get).once.
+        returns(make_response(make_order(:id => 'or_test_order')))
+      order = Stripe::Order.retrieve('or_test_order')
+
+      @mock.expects(:post).once.
+        with('https://api.stripe.com/v1/orders/or_test_order/returns', nil, 'items[][parent]=sku_foo').
+        returns(make_response(make_order_return({:order => order.id})))
+      order_return = order.return_order(:items => [{:parent => 'sku_foo'}])
+      assert_equal order.id, order_return.order
     end
   end
 end

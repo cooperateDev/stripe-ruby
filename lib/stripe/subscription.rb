@@ -1,15 +1,9 @@
 module Stripe
   class Subscription < APIResource
-    include Stripe::APIOperations::Update
+    extend Stripe::APIOperations::List
+    extend Stripe::APIOperations::Create
+    include Stripe::APIOperations::Save
     include Stripe::APIOperations::Delete
-
-    def resource_url
-      "#{Customer.resource_url}/#{CGI.escape(customer)}/subscriptions/#{CGI.escape(id)}"
-    end
-
-    def self.retrieve(id, opts=nil)
-      raise NotImplementedError.new("Subscriptions cannot be retrieved without a customer ID. Retrieve a subscription using customer.subscriptions.retrieve('subscription_id')")
-    end
 
     def delete_discount
       _, opts = request(:delete, discount_url)
