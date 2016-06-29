@@ -72,13 +72,12 @@ module Stripe
     #
     # * +values+ - Hash of values to use to update the current attributes of
     #   the object.
-    # * +opts+ - Options for +StripeObject+ like an API key that will be reused
-    #   on subsequent API calls.
+    # * +:opts+ Options for StripeObject like an API key.
     #
     # ==== Options
     #
-    # * +:dirty+ - Whether values should be initiated as "dirty" (unsaved) and
-    #   which applies only to new StripeObjects being initiated under this
+    # * +:dirty+ Whether values should be initiated as "dirty" (unsaved) and
+    #   which applies only to new StripeObjects being ininiated under this
     #   StripeObject. Defaults to true.
     def update_attributes(values, opts = {}, method_options = {})
       # Default to true. TODO: Convert to optional arguments after we're off
