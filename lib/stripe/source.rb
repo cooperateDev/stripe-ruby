@@ -1,7 +1,6 @@
 module Stripe
   class Source < APIResource
     include Stripe::APIOperations::Save
-    extend Stripe::APIOperations::Create
     extend Stripe::APIOperations::List
 
     def verify(params={}, opts={})
