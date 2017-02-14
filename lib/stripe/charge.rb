@@ -20,41 +20,41 @@ module Stripe
         # from the server
         self.refresh
       else
-        resp, opts = request(:post, refund_url, params, opts)
-        initialize_from(resp.data, opts)
+        response, opts = request(:post, refund_url, params, opts)
+        initialize_from(response, opts)
       end
     end
 
     def capture(params={}, opts={})
-      resp, opts = request(:post, capture_url, params, opts)
-      initialize_from(resp.data, opts)
+      response, opts = request(:post, capture_url, params, opts)
+      initialize_from(response, opts)
     end
 
     def update_dispute(params={}, opts={})
-      resp, opts = request(:post, dispute_url, params, opts)
-      initialize_from({ :dispute => resp.data }, opts, true)
+      response, opts = request(:post, dispute_url, params, opts)
+      initialize_from({ :dispute => response }, opts, true)
       dispute
     end
 
     def close_dispute(params={}, opts={})
-      resp, opts = request(:post, close_dispute_url, params, opts)
-      initialize_from(resp.data, opts)
+      response, opts = request(:post, close_dispute_url, params, opts)
+      initialize_from(response, opts)
     end
 
     def mark_as_fraudulent
       params = {
         :fraud_details => { :user_report => 'fraudulent' }
       }
-      resp, opts = request(:post, resource_url, params)
-      initialize_from(resp.data, opts)
+      response, opts = request(:post, resource_url, params)
+      initialize_from(response, opts)
     end
 
     def mark_as_safe
       params = {
         :fraud_details => { :user_report => 'safe' }
       }
-      resp, opts = request(:post, resource_url, params)
-      initialize_from(resp.data, opts)
+      response, opts = request(:post, resource_url, params)
+      initialize_from(response, opts)
     end
 
     private

@@ -21,8 +21,8 @@ module Stripe
             end
           end
 
-          resp, opts = request(:post, "#{resource_url}/#{id}", params, opts)
-          Util.convert_to_stripe_object(resp.data, opts)
+          response, opts = request(:post, "#{resource_url}/#{id}", params, opts)
+          Util.convert_to_stripe_object(response, opts)
         end
       end
 
@@ -57,8 +57,10 @@ module Stripe
         # generated a uri for this object with an identifier baked in
         values.delete(:id)
 
-        resp, opts = request(:post, save_url, values, opts)
-        initialize_from(resp.data, opts)
+        response, opts = request(:post, save_url, values, opts)
+        initialize_from(response, opts)
+
+        self
       end
 
       def self.included(base)

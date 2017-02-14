@@ -68,18 +68,18 @@ module Stripe
     #
     # ==== Attributes
     #
-    # * +data+ - Hash of fields and values to be converted into a StripeObject.
+    # * +resp+ - Hash of fields and values to be converted into a StripeObject.
     # * +opts+ - Options for +StripeObject+ like an API key that will be reused
     #   on subsequent API calls.
-    def self.convert_to_stripe_object(data, opts)
-      case data
+    def self.convert_to_stripe_object(resp, opts)
+      case resp
       when Array
-        data.map { |i| convert_to_stripe_object(i, opts) }
+        resp.map { |i| convert_to_stripe_object(i, opts) }
       when Hash
         # Try converting to a known object class.  If none available, fall back to generic StripeObject
-        object_classes.fetch(data[:object], StripeObject).construct_from(data, opts)
+        object_classes.fetch(resp[:object], StripeObject).construct_from(resp, opts)
       else
-        data
+        resp
       end
     end
 

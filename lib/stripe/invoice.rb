@@ -5,13 +5,13 @@ module Stripe
     extend Stripe::APIOperations::Create
 
     def self.upcoming(params, opts={})
-      resp, opts = request(:get, upcoming_url, params, opts)
-      Util.convert_to_stripe_object(resp.data, opts)
+      response, opts = request(:get, upcoming_url, params, opts)
+      Util.convert_to_stripe_object(response, opts)
     end
 
     def pay(opts={})
-      resp, opts = request(:post, pay_url, {}, opts)
-      initialize_from(resp.data, opts)
+      response, opts = request(:post, pay_url, {}, opts)
+      initialize_from(response, opts)
     end
 
     private

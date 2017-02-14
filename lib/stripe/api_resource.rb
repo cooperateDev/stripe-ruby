@@ -54,8 +54,8 @@ module Stripe
     end
 
     def refresh
-      resp, opts = request(:get, resource_url, @retrieve_params)
-      initialize_from(resp.data, opts)
+      response, opts = request(:get, resource_url, @retrieve_params)
+      initialize_from(response, opts)
     end
 
     def self.retrieve(id, opts={})

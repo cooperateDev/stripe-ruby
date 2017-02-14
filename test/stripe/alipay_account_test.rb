@@ -2,17 +2,9 @@ require File.expand_path('../../test_helper', __FILE__)
 
 module Stripe
   class AlipayAccountTest < Test::Unit::TestCase
-    FIXTURE = API_FIXTURES.fetch(:alipay_account)
-
-    should "raise on #retrieve" do
+    should "raise if accessing Stripe::Alipay.account directly" do
       assert_raises NotImplementedError do
-        Stripe::AlipayAccount.retrieve FIXTURE[:id]
-      end
-    end
-
-    should "raise on #update" do
-      assert_raises NotImplementedError do
-        Stripe::AlipayAccount.update FIXTURE[:id], {}
+        Stripe::AlipayAccount.retrieve "card_12345"
       end
     end
   end

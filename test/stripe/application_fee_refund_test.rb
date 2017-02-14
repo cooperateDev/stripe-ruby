@@ -2,37 +2,43 @@ require File.expand_path('../../test_helper', __FILE__)
 
 module Stripe
   class ApplicationFeeRefundTest < Test::Unit::TestCase
-    FIXTURE = API_FIXTURES.fetch(:fee_refund)
+    should "refunds should be listable" do
+      stub_request(:get, "#{Stripe.api_base}/v1/application_fees/test_application_fee").
+        to_return(body: JSON.generate(make_application_fee))
 
-    setup do
-      application_fee_fixture = API_FIXTURES.fetch(:platform_earning)
-      @fee = Stripe::ApplicationFee.retrieve(application_fee_fixture[:id])
+      application_fee = Stripe::ApplicationFee.retrieve('test_application_fee')
+
+      assert application_fee.refunds.first.kind_of?(Stripe::ApplicationFeeRefund)
     end
 
-    should "be listable" do
-      refunds = @fee.refunds
+    should "refunds should be updateable" do
+      stub_request(:get, "#{Stripe.api_base}/v1/application_fees/test_application_fee").
+        to_return(body: JSON.generate(make_application_fee))
 
-      # notably this *doesn't* make an API call
-      assert_not_requested :get,
-        "#{Stripe.api_base}/v1/application_fees/#{@fee.id}/refunds"
+      application_fee = Stripe::ApplicationFee.retrieve('test_application_fee')
+      refund = application_fee.refunds.first
 
-      assert refunds.data.kind_of?(Array)
-      assert refunds.first.kind_of?(Stripe::ApplicationFeeRefund)
-    end
+      stub_request(:post, "#{Stripe.api_base}/v1/application_fees/#{refund.fee}/refunds/#{refund.id}").
+        to_return(body: JSON.generate(make_application_fee_refund(:metadata => {'key' => 'value'})))
 
-    should "be creatable" do
-      refund = @fee.refunds.create
-      assert_requested :post,
-        "#{Stripe.api_base}/v1/application_fees/#{@fee.id}/refunds"
-      assert refund.kind_of?(Stripe::ApplicationFeeRefund)
-    end
+      assert_equal nil, refund.metadata['key']
 
-    should "be saveable" do
-      refund = @fee.refunds.first
-      refund.metadata['key'] = 'value'
+      refund.metadata['key'] = 'valu'
       refund.save
-      assert_requested :post,
-        "#{Stripe.api_base}/v1/application_fees/#{@fee.id}/refunds/#{FIXTURE[:id]}"
+
+      assert_equal 'value', refund.metadata['key']
+    end
+
+    should "create should return a new refund" do
+      stub_request(:get, "#{Stripe.api_base}/v1/application_fees/test_application_fee").
+        to_return(body: JSON.generate(make_application_fee))
+      application_fee = Stripe::ApplicationFee.retrieve('test_application_fee')
+
+      stub_request(:post, "#{Stripe.api_base}/v1/application_fees/#{application_fee.id}/refunds").
+        to_return(body: JSON.generate(make_application_fee_refund(:id => 'test_new_refund')))
+
+      refund = application_fee.refunds.create(:amount => 20)
+      assert_equal 'test_new_refund', refund.id
     end
   end
 end
