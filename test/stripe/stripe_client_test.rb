@@ -143,14 +143,19 @@ module Stripe
 
       context "Stripe-Account header" do
         should "use a globally set header" do
-          Stripe.stripe_account = 'acct_1234'
+          begin
+            old = Stripe.stripe_account
+            Stripe.stripe_account = 'acct_1234'
 
-          stub_request(:post, "#{Stripe.api_base}/v1/account").
-            with(headers: {"Stripe-Account" => Stripe.stripe_account}).
-            to_return(body: JSON.generate(API_FIXTURES.fetch(:account)))
+            stub_request(:post, "#{Stripe.api_base}/v1/account").
+              with(headers: {"Stripe-Account" => Stripe.stripe_account}).
+              to_return(body: JSON.generate(API_FIXTURES.fetch(:account)))
 
-          client = StripeClient.new
-          client.execute_request(:post, '/v1/account')
+            client = StripeClient.new
+            client.execute_request(:post, '/v1/account')
+          ensure
+            Stripe.stripe_account = old
+          end
         end
 
         should "use a locally set header" do
@@ -173,6 +178,36 @@ module Stripe
 
           client = StripeClient.new
           client.execute_request(:post, '/v1/account')
+        end
+      end
+
+      context "app_info" do
+        should "send app_info if set" do
+          begin
+            old = Stripe.app_info
+            Stripe.set_app_info(
+              "MyAwesomePlugin",
+              url: "https://myawesomeplugin.info",
+              version: "1.2.34"
+            )
+
+            stub_request(:post, "#{Stripe.api_base}/v1/account").
+              with { |req|
+                data = JSON.parse(req.headers["X-Stripe-Client-User-Agent"],
+                  symbolize_names: true)
+
+                data["application"] == {
+                  name: "MyAwesomePlugin",
+                  url: "https://myawesomeplugin.info",
+                  version: "1.2.34"
+                }
+              }.to_return(body: JSON.generate(API_FIXTURES.fetch(:account)))
+
+            client = StripeClient.new
+            client.execute_request(:post, '/v1/account')
+          ensure
+            Stripe.app_info = old
+          end
         end
       end
 
