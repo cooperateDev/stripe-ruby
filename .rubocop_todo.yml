@@ -35,10 +35,10 @@ Metrics/LineLength:
 Metrics/MethodLength:
   Max: 47
 
-# Offense count: 1
+# Offense count: 2
 # Configuration parameters: CountComments.
 Metrics/ModuleLength:
-  Max: 290
+  Max: 423
 
 # Offense count: 6
 # Configuration parameters: CountKeywordArgs.
@@ -51,11 +51,6 @@ Metrics/PerceivedComplexity:
   Exclude:
     - 'lib/stripe/stripe_object.rb'
 
-# Offense count: 1
-Security/MarshalLoad:
-  Exclude:
-    - 'lib/stripe/stripe_object.rb'
-
 # Offense count: 2
 Style/ClassVars:
   Exclude:
@@ -65,3 +60,12 @@ Style/ClassVars:
 # Offense count: 51
 Style/Documentation:
   Enabled: false
+
+# Offense count: 5
+# Configuration parameters: MinBodyLength.
+Style/GuardClause:
+  Exclude:
+    - 'lib/stripe/alipay_account.rb'
+    - 'lib/stripe/source.rb'
+    - 'lib/stripe/stripe_client.rb'
+    - 'lib/stripe/stripe_object.rb'
