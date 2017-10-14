@@ -427,7 +427,7 @@ module Stripe
           copy
         end
       when StripeObject
-        obj.class.construct_from(
+        StripeObject.construct_from(
           deep_copy(obj.instance_variable_get(:@values)),
           obj.instance_variable_get(:@opts).select do |k, _v|
             Util::OPTS_COPYABLE.include?(k)
