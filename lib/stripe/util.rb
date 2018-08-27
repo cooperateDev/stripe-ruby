@@ -98,7 +98,6 @@ module Stripe
         Topup::OBJECT_NAME                    => Topup,
         Transfer::OBJECT_NAME                 => Transfer,
         UsageRecord::OBJECT_NAME              => UsageRecord,
-        UsageRecordSummary::OBJECT_NAME       => UsageRecordSummary,
       }
     end
 
@@ -155,7 +154,7 @@ module Stripe
       # report incorrect results on some more oddball filesystems
       # (such as AFS)
 
-      File.open(file) { |f| }
+      ::File.open(file) { |f| }
     rescue StandardError
       false
     else

@@ -89,13 +89,12 @@ require "stripe/token"
 require "stripe/topup"
 require "stripe/transfer"
 require "stripe/usage_record"
-require "stripe/usage_record_summary"
 
 # OAuth
 require "stripe/oauth"
 
 module Stripe
-  DEFAULT_CA_BUNDLE_PATH = File.dirname(__FILE__) + "/data/ca-certificates.crt"
+  DEFAULT_CA_BUNDLE_PATH = ::File.dirname(__FILE__) + "/data/ca-certificates.crt"
 
   @app_info = nil
 
