@@ -86,6 +86,8 @@ module Stripe
         Recipient::OBJECT_NAME                => Recipient,
         RecipientTransfer::OBJECT_NAME        => RecipientTransfer,
         Refund::OBJECT_NAME                   => Refund,
+        Reporting::ReportRun::OBJECT_NAME     => Reporting::ReportRun,
+        Reporting::ReportType::OBJECT_NAME    => Reporting::ReportType,
         Reversal::OBJECT_NAME                 => Reversal,
         SKU::OBJECT_NAME                      => SKU,
         Sigma::ScheduledQueryRun::OBJECT_NAME => Sigma::ScheduledQueryRun,
@@ -148,18 +150,6 @@ module Stripe
         log_internal(message, data, color: :blue,
                                     level: Stripe::LEVEL_DEBUG, logger: Stripe.logger, out: $stdout)
       end
-    end
-
-    def self.file_readable(file)
-      # This is nominally equivalent to File.readable?, but that can
-      # report incorrect results on some more oddball filesystems
-      # (such as AFS)
-
-      ::File.open(file) { |f| }
-    rescue StandardError
-      false
-    else
-      true
     end
 
     def self.symbolize_names(object)
@@ -276,11 +266,8 @@ module Stripe
     # diffent naming schemes.
     def self.normalize_headers(headers)
       headers.each_with_object({}) do |(k, v), new_headers|
-        if k.is_a?(Symbol)
-          k = titlecase_parts(k.to_s.tr("_", "-"))
-        elsif k.is_a?(String)
-          k = titlecase_parts(k)
-        end
+        k = k.to_s.tr("_", "-") if k.is_a?(Symbol)
+        k = k.split("-").reject(&:empty?).map(&:capitalize).join("-")
 
         new_headers[k] = v
       end
@@ -367,14 +354,6 @@ module Stripe
       end
     end
     private_class_method :log_internal
-
-    def self.titlecase_parts(s)
-      s.split("-")
-       .reject { |p| p == "" }
-       .map { |p| p[0].upcase + p[1..-1].downcase }
-       .join("-")
-    end
-    private_class_method :titlecase_parts
 
     # Wraps a value in double quotes if it looks sufficiently complex so that
     # it can be read by logfmt parsers.
