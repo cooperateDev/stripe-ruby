@@ -86,8 +86,6 @@ module Stripe
         Recipient::OBJECT_NAME                => Recipient,
         RecipientTransfer::OBJECT_NAME        => RecipientTransfer,
         Refund::OBJECT_NAME                   => Refund,
-        Reporting::ReportRun::OBJECT_NAME     => Reporting::ReportRun,
-        Reporting::ReportType::OBJECT_NAME    => Reporting::ReportType,
         Reversal::OBJECT_NAME                 => Reversal,
         SKU::OBJECT_NAME                      => SKU,
         Sigma::ScheduledQueryRun::OBJECT_NAME => Sigma::ScheduledQueryRun,
@@ -150,18 +148,6 @@ module Stripe
         log_internal(message, data, color: :blue,
                                     level: Stripe::LEVEL_DEBUG, logger: Stripe.logger, out: $stdout)
       end
-    end
-
-    def self.file_readable(file)
-      # This is nominally equivalent to File.readable?, but that can
-      # report incorrect results on some more oddball filesystems
-      # (such as AFS)
-
-      ::File.open(file) { |f| }
-    rescue StandardError
-      false
-    else
-      true
     end
 
     def self.symbolize_names(object)
