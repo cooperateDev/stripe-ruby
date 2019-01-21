@@ -23,7 +23,9 @@ module Stripe
         return @port
       end
 
-      puts("Starting stripe-mock...")
+      @port = find_available_port
+
+      puts("Starting stripe-mock on port #{@port}...")
 
       @stdout, @child_stdout = ::IO.pipe
       @stderr, @child_stderr = ::IO.pipe
@@ -31,7 +33,7 @@ module Stripe
       @pid = ::Process.spawn(
         ["stripe-mock", "stripe-mock"],
         "-http-port",
-        "0", # have stripe-mock select a port
+        @port.to_s,
         "-spec",
         PATH_SPEC,
         "-fixtures",
@@ -42,16 +44,7 @@ module Stripe
 
       [@child_stdout, @child_stderr].each(&:close)
 
-      # Look for port in "Listening for HTTP on port: 50602"
-      buffer = ""
-      loop do
-        buffer += @stdout.readpartial(4096)
-        if (matches = buffer.match(/ port: (\d+)/))
-          @port = matches[1]
-          break
-        end
-        sleep(0.1)
-      end
+      sleep 1
 
       status = (::Process.wait2(@pid, ::Process::WNOHANG) || []).last
       if status.nil?
@@ -72,6 +65,14 @@ module Stripe
       @pid = nil
       @port = -1
       puts("Stopped stripe-mock")
+    end
+
+    # Finds and returns an available TCP port
+    private_class_method def self.find_available_port
+      server = TCPServer.new("localhost", 0)
+      port = server.addr[1]
+      server.close
+      port
     end
   end
 end
