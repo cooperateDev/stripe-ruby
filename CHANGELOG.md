@@ -1,14 +1,5 @@
 # Changelog
 
-## 4.8.1 - 2019-02-11
-* [#743](https://github.com/stripe/stripe-ruby/pull/743) Fix bug in file uploading introduced in #741
-
-## 4.8.0 - 2019-02-03
-* [#741](https://github.com/stripe/stripe-ruby/pull/741) Use `FaradayStripeEncoder` to encode all parameter styles
-
-## 4.7.1 - 2019-02-01
-* [#740](https://github.com/stripe/stripe-ruby/pull/740) Fix query encoding for integer-indexed maps
-
 ## 4.7.0 - 2019-01-23
 * [#735](https://github.com/stripe/stripe-ruby/pull/735) Rename `CheckoutSession` to `Session` and move it under the `Checkout` namespace. This is a breaking change, but we've reached out to affected merchants and all new merchants would use the new approach.
 
